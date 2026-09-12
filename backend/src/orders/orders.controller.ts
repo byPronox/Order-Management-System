@@ -1,25 +1,17 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Order } from './entities/order.entity';
+import { Controller, Get, Param } from '@nestjs/common';
+import { OrdersService } from './orders.service';
 
-@Injectable()
-export class OrdersService {
-  constructor(
-    @InjectRepository(Order)
-    private readonly ordersRepository: Repository<Order>,
-  ) {}
+@Controller('orders')
+export class OrdersController {
+  constructor(private readonly ordersService: OrdersService) {}
 
+  @Get()
   findAll() {
-    return this.ordersRepository.find({ relations: ['customer', 'items', 'items.product'] });
+    return this.ordersService.findAll();
   }
 
-  async findOne(id: number) {
-    const order = await this.ordersRepository.findOne({
-      where: { id },
-      relations: ['customer', 'items', 'items.product'],
-    });
-    if (!order) throw new NotFoundException(`Order #${id} not found`);
-    return order;
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.ordersService.findOne(+id);
   }
 }
