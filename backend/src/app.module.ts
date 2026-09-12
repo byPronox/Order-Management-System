@@ -12,6 +12,7 @@ import { OrdersModule } from './orders/orders.module';
 import { WorkspaceSettingsModule } from './workspace-settings/workspace-settings.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     WorkspaceSettingsModule,
     UploadsModule,
     WorkspacesModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
