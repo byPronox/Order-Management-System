@@ -1,0 +1,5 @@
+import { MetricSkeleton, Skeleton } from "@/components/ui/skeleton"
+
+export default function ProductsLoading() {
+  return <main className="mx-auto max-w-[1440px] px-5 py-6 sm:px-8 lg:px-10 lg:py-9"><div className="flex items-end justify-between border-b border-black/[.07] pb-7"><div><Skeleton className="h-2 w-32" /><Skeleton className="mt-4 h-12 w-52" /><Skeleton className="mt-3 h-3 w-80" /></div><Skeleton className="h-10 w-36" /></div><section className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><MetricSkeleton /><MetricSkeleton /><MetricSkeleton /><MetricSkeleton /></section><section className="mt-7 overflow-hidden rounded-2xl border border-black/[.07] bg-white p-5"><Skeleton className="h-10 w-full" /><div className="mt-5 space-y-4">{Array.from({ length: 5 }).map((_, index) => <div key={index} className="flex items-center gap-4 border-b border-black/[.06] pb-4"><Skeleton className="size-11 rounded-xl" /><Skeleton className="h-4 flex-1" /><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-20" /></div>)}</div></section></main>
+}
