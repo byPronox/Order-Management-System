@@ -1,8 +1,9 @@
 "use client"
 
+import { useState, useRef, useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Box, ChevronDown, LayoutDashboard, Package, Settings, ShoppingCart, Users } from "lucide-react"
+import { usePathname, useRouter } from "next/navigation"
+import { Box, ChevronDown, LayoutDashboard, LogOut, Package, Settings, ShoppingCart, Users } from "lucide-react"
 import { BrandMark } from "@/components/brand-mark"
 
 const navigation = [
@@ -15,6 +16,28 @@ const navigation = [
 
 export function DashboardSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } finally {
+      router.push("/login")
+      router.refresh()
+    }
+  }
 
   return (
     <aside className="flex w-full shrink-0 flex-col border-b border-black/8 bg-[#f7f3f2] px-4 py-5 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:border-b-0 lg:border-r lg:px-5">
@@ -33,7 +56,18 @@ export function DashboardSidebar() {
           </Link>
         })}
       </nav>
-      <div className="mt-auto hidden rounded-2xl bg-white p-3 shadow-sm lg:block">
+      <div className="relative mt-auto hidden rounded-2xl bg-white p-3 shadow-sm lg:block" ref={menuRef}>
+        {menuOpen && (
+          <div className="absolute bottom-full left-0 mb-2 w-full overflow-hidden rounded-xl border border-black/8 bg-white shadow-lg">
+            <button
+              onClick={handleLogout}
+              className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-xs font-medium text-red-600 transition hover:bg-red-50"
+            >
+              <LogOut size={15} strokeWidth={1.8} aria-hidden="true" />
+              Log out
+            </button>
+          </div>
+        )}
         <div className="flex items-center gap-3 rounded-xl bg-[#f7f3f2] p-2.5">
           <div className="relative grid size-10 shrink-0 place-items-center rounded-full bg-black text-xs font-semibold text-white" aria-hidden="true">
             AM
@@ -43,8 +77,13 @@ export function DashboardSidebar() {
             <p className="truncate text-xs font-semibold text-neutral-900">Alex Morgan</p>
             <p className="mt-0.5 truncate text-[11px] text-neutral-500">Administrator</p>
           </div>
-          <button className="grid size-8 place-items-center rounded-lg text-neutral-400 transition hover:bg-white hover:text-neutral-900" aria-label="Open account menu">
-            <ChevronDown size={14} />
+          <button
+            onClick={() => setMenuOpen((prev) => !prev)}
+            className="grid size-8 place-items-center rounded-lg text-neutral-400 transition hover:bg-white hover:text-neutral-900"
+            aria-label="Open account menu"
+            aria-expanded={menuOpen}
+          >
+            <ChevronDown size={14} className={`transition-transform ${menuOpen ? "rotate-180" : ""}`} />
           </button>
         </div>
       </div>
