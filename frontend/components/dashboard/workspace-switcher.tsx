@@ -6,6 +6,8 @@ import { Check, ChevronDown } from "lucide-react"
 import { workspacesApi } from "@/lib/api/workspaces"
 import type { Workspace } from "@/lib/types"
 
+const DEFAULT_WORKSPACE = { id: 1, name: "Orderly HQ", slug: "orderly-hq" }
+
 function getCookie(name: string) {
   if (typeof document === "undefined") return null
   const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
@@ -16,16 +18,28 @@ export function WorkspaceSwitcher() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
-  const [activeId, setActiveId] = useState<number | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const [activeId, setActiveId] = useState<number>(() => {
+    const cookieId = getCookie("workspace_id")
+    return cookieId ? Number(cookieId) : DEFAULT_WORKSPACE.id
+  })
+  const [activeName, setActiveName] = useState<string>(() => {
+    return getCookie("workspace_name") ?? DEFAULT_WORKSPACE.name
+  })
 
   useEffect(() => {
     workspacesApi.list().then((data) => {
       setWorkspaces(data)
-      const cookieId = getCookie("workspace_id")
-      setActiveId(cookieId ? Number(cookieId) : data[0]?.id ?? null)
+
+      if (!getCookie("workspace_id") && data.length > 0) {
+        const first = data[0]
+        setActiveId(first.id)
+        setActiveName(first.name)
+        document.cookie = `workspace_id=${first.id}; path=/; max-age=${60 * 60 * 24 * 30}`
+        document.cookie = `workspace_name=${encodeURIComponent(first.name)}; path=/; max-age=${60 * 60 * 24 * 30}`
+      }
     }).catch(() => {
-      // silently fail; switcher just won't populate
     })
   }, [])
 
@@ -46,18 +60,19 @@ export function WorkspaceSwitcher() {
 
   async function handleSelect(workspace: Workspace) {
     setActiveId(workspace.id)
+    setActiveName(workspace.name)
     setOpen(false)
 
     await fetch("/api/workspace", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ workspaceId: workspace.id }),
+      body: JSON.stringify({ workspaceId: workspace.id, workspaceName: workspace.name }),
     })
 
     router.refresh()
   }
 
-  const activeWorkspace = workspaces.find((w) => w.id === activeId)
+  const list = workspaces.length > 0 ? workspaces : [DEFAULT_WORKSPACE]
 
   return (
     <div className="relative" ref={containerRef}>
@@ -70,16 +85,16 @@ export function WorkspaceSwitcher() {
       >
         <span className="flex items-center gap-2">
           <span className="grid size-6 place-items-center rounded-lg bg-black text-[10px] text-white">
-            {activeWorkspace?.name?.charAt(0) ?? "O"}
+            {activeName.charAt(0)}
           </span>
-          {activeWorkspace?.name ?? "Loading..."}
+          {activeName}
         </span>
         <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
         <div className="absolute left-0 top-full z-50 mt-2 w-full min-w-[220px] overflow-hidden rounded-xl border border-black/8 bg-white shadow-lg">
-          {workspaces.map((workspace) => (
+          {list.map((workspace) => (
             <button
               key={workspace.id}
               type="button"
