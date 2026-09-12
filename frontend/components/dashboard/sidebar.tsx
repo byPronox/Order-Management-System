@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Box, ChevronDown, LayoutDashboard, LogOut, Package, Settings, ShoppingCart, Users } from "lucide-react"
 import { BrandMark } from "@/components/brand-mark"
+import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher"
 
 const navigation = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -21,16 +22,26 @@ export function DashboardSidebar() {
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (!menuOpen) return
+
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setMenuOpen(false)
       }
     }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+
+    const timer = setTimeout(() => {
+      document.addEventListener("click", handleClickOutside)
+    }, 0)
+
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener("click", handleClickOutside)
+    }
+  }, [menuOpen])
 
   async function handleLogout() {
+    setMenuOpen(false)
     try {
       await fetch("/api/auth/logout", { method: "POST" })
     } finally {
@@ -43,10 +54,9 @@ export function DashboardSidebar() {
     <aside className="flex w-full shrink-0 flex-col border-b border-black/8 bg-[#f7f3f2] px-4 py-5 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:border-b-0 lg:border-r lg:px-5">
       <div className="flex items-center justify-between lg:block">
         <BrandMark />
-        <button className="hidden items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-medium text-neutral-600 shadow-sm lg:mt-10 lg:flex lg:w-full lg:justify-between" aria-label="Switch workspace">
-          <span className="flex items-center gap-2"><span className="grid size-6 place-items-center rounded-lg bg-black text-[10px] text-white">O</span> Orderly HQ</span>
-          <ChevronDown size={14} />
-        </button>
+        <div className="hidden lg:mt-10 lg:block">
+          <WorkspaceSwitcher />
+        </div>
       </div>
       <nav className="mt-6 flex gap-1 overflow-x-auto lg:mt-8 lg:flex-col" aria-label="Workspace navigation">
         {navigation.map(({ label, href, icon: Icon }) => {
@@ -58,8 +68,9 @@ export function DashboardSidebar() {
       </nav>
       <div className="relative mt-auto hidden rounded-2xl bg-white p-3 shadow-sm lg:block" ref={menuRef}>
         {menuOpen && (
-          <div className="absolute bottom-full left-0 mb-2 w-full overflow-hidden rounded-xl border border-black/8 bg-white shadow-lg">
+          <div className="absolute bottom-full left-0 z-50 mb-2 w-full overflow-hidden rounded-xl border border-black/8 bg-white shadow-lg">
             <button
+              type="button"
               onClick={handleLogout}
               className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-xs font-medium text-red-600 transition hover:bg-red-50"
             >
@@ -78,6 +89,7 @@ export function DashboardSidebar() {
             <p className="mt-0.5 truncate text-[11px] text-neutral-500">Administrator</p>
           </div>
           <button
+            type="button"
             onClick={() => setMenuOpen((prev) => !prev)}
             className="grid size-8 place-items-center rounded-lg text-neutral-400 transition hover:bg-white hover:text-neutral-900"
             aria-label="Open account menu"

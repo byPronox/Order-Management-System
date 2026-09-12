@@ -6,4 +6,10 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return response.json() as Promise<T>
 }
 
-export const endpoints = { customers: '/customers', products: '/products', orders: '/orders', auth: '/auth' } as const
+export const endpoints = {
+  customers: '/customers',
+  products: '/products',
+  orders: '/orders',
+  auth: '/auth',
+  workspaces: '/workspaces',
+} as const

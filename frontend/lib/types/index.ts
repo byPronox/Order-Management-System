@@ -9,3 +9,8 @@ export interface Product { id: string; name: string; description: string; sku: s
 export interface OrderItem { id: string; productId: string; quantity: number; unitPrice: number; subtotal: number }
 export interface Order { id: string; customerId: string; status: OrderStatus; totalAmount: number; items: OrderItem[]; createdAt: string; updatedAt: string }
 export interface User { id: string; email: string; name: string; role: UserRole; createdAt: string }
+export interface Workspace {
+  id: number
+  name: string
+  slug: string
+}
