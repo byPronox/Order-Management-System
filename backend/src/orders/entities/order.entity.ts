@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { Customer } from '../../customers/entities/customer.entity';
 import { User } from '../../users/entities/user.entity';
+import { Workspace } from '../../workspaces/entities/workspace.entity';
 import { OrderItem } from './order-item.entity';
 
 export enum OrderStatus {
@@ -13,6 +14,9 @@ export enum OrderStatus {
 export class Order {
   @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
   id: number;
+
+  @Column({ name: 'workspace_id', type: 'bigint', unsigned: true, default: 1 })
+  workspaceId: number;
 
   @Column({ name: 'customer_id', type: 'bigint', unsigned: true })
   customerId: number;
@@ -34,6 +38,10 @@ export class Order {
 
   @Column({ name: 'cancelled_at', type: 'timestamp', nullable: true })
   cancelledAt: Date;
+
+  @ManyToOne(() => Workspace)
+  @JoinColumn({ name: 'workspace_id' })
+  workspace: Workspace;
 
   @ManyToOne(() => Customer)
   @JoinColumn({ name: 'customer_id' })

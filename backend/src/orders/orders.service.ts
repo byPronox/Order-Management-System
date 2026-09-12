@@ -10,13 +10,17 @@ export class OrdersService {
     private readonly ordersRepository: Repository<Order>,
   ) {}
 
-  findAll() {
-    return this.ordersRepository.find({ relations: ['customer', 'items', 'items.product'] });
+  findAll(workspaceId?: number) {
+    return this.ordersRepository.find({
+      where: workspaceId ? { workspaceId } : {},
+      relations: ['customer', 'items', 'items.product'],
+      order: { createdAt: 'DESC' },
+    });
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, workspaceId?: number) {
     const order = await this.ordersRepository.findOne({
-      where: { id },
+      where: workspaceId ? { id, workspaceId } : { id },
       relations: ['customer', 'items', 'items.product'],
     });
     if (!order) throw new NotFoundException(`Order #${id} not found`);
