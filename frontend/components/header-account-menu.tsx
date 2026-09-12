@@ -16,19 +16,20 @@ export function HeaderAccountMenu({ initials }: HeaderAccountMenuProps) {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        console.log("CLICK OUTSIDE DETECTED — closing menu") // debug
         setOpen(false)
       }
     }
-    // "click" en vez de "mousedown": evita que el menú se cierre
-    // antes de que el click en un botón interno llegue a dispararse.
     document.addEventListener("click", handleClickOutside)
     return () => document.removeEventListener("click", handleClickOutside)
   }, [])
 
   async function handleLogout() {
+    console.log("LOGOUT CLICKED") // debug
     setOpen(false)
     try {
       await fetch("/api/auth/logout", { method: "POST" })
+      console.log("LOGOUT FETCH DONE") // debug
     } finally {
       router.push("/login")
       router.refresh()
@@ -36,6 +37,7 @@ export function HeaderAccountMenu({ initials }: HeaderAccountMenuProps) {
   }
 
   function handleDashboard() {
+    console.log("DASHBOARD CLICKED") // debug
     setOpen(false)
     router.push("/dashboard")
   }
@@ -43,7 +45,11 @@ export function HeaderAccountMenu({ initials }: HeaderAccountMenuProps) {
   return (
     <div className="relative z-50" ref={menuRef}>
       <button
-        onClick={() => setOpen((prev) => !prev)}
+        type="button"
+        onClick={() => {
+          console.log("TOGGLE BUTTON CLICKED, open was:", open) // debug
+          setOpen((prev) => !prev)
+        }}
         className="flex items-center gap-2 rounded-full border border-black/10 bg-white py-1.5 pl-1.5 pr-3 text-xs font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50"
         aria-label="Account menu"
         aria-expanded={open}
