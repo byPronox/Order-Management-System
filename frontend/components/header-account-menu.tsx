@@ -11,25 +11,33 @@ interface HeaderAccountMenuProps {
 export function HeaderAccountMenu({ initials }: HeaderAccountMenuProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (!open) return // clave: solo escuchamos cuando el menú está abierto
+
     function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        console.log("CLICK OUTSIDE DETECTED — closing menu") // debug
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setOpen(false)
       }
     }
-    document.addEventListener("click", handleClickOutside)
-    return () => document.removeEventListener("click", handleClickOutside)
-  }, [])
+
+    // el pequeño delay evita que el MISMO click que abrió el menú
+    // sea interpretado como un click "afuera"
+    const timer = setTimeout(() => {
+      document.addEventListener("click", handleClickOutside)
+    }, 0)
+
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener("click", handleClickOutside)
+    }
+  }, [open])
 
   async function handleLogout() {
-    console.log("LOGOUT CLICKED") // debug
     setOpen(false)
     try {
       await fetch("/api/auth/logout", { method: "POST" })
-      console.log("LOGOUT FETCH DONE") // debug
     } finally {
       router.push("/login")
       router.refresh()
@@ -37,19 +45,15 @@ export function HeaderAccountMenu({ initials }: HeaderAccountMenuProps) {
   }
 
   function handleDashboard() {
-    console.log("DASHBOARD CLICKED") // debug
     setOpen(false)
     router.push("/dashboard")
   }
 
   return (
-    <div className="relative z-50" ref={menuRef}>
+    <div className="relative z-50" ref={containerRef}>
       <button
         type="button"
-        onClick={() => {
-          console.log("TOGGLE BUTTON CLICKED, open was:", open) // debug
-          setOpen((prev) => !prev)
-        }}
+        onClick={() => setOpen((prev) => !prev)}
         className="flex items-center gap-2 rounded-full border border-black/10 bg-white py-1.5 pl-1.5 pr-3 text-xs font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50"
         aria-label="Account menu"
         aria-expanded={open}
