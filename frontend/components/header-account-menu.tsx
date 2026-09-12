@@ -19,11 +19,14 @@ export function HeaderAccountMenu({ initials }: HeaderAccountMenuProps) {
         setOpen(false)
       }
     }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
+    // "click" en vez de "mousedown": evita que el menú se cierre
+    // antes de que el click en un botón interno llegue a dispararse.
+    document.addEventListener("click", handleClickOutside)
+    return () => document.removeEventListener("click", handleClickOutside)
   }, [])
 
   async function handleLogout() {
+    setOpen(false)
     try {
       await fetch("/api/auth/logout", { method: "POST" })
     } finally {
@@ -32,8 +35,13 @@ export function HeaderAccountMenu({ initials }: HeaderAccountMenuProps) {
     }
   }
 
+  function handleDashboard() {
+    setOpen(false)
+    router.push("/dashboard")
+  }
+
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative z-50" ref={menuRef}>
       <button
         onClick={() => setOpen((prev) => !prev)}
         className="flex items-center gap-2 rounded-full border border-black/10 bg-white py-1.5 pl-1.5 pr-3 text-xs font-medium text-neutral-700 shadow-sm transition hover:bg-neutral-50"
@@ -47,15 +55,17 @@ export function HeaderAccountMenu({ initials }: HeaderAccountMenuProps) {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-48 overflow-hidden rounded-xl border border-black/8 bg-white shadow-lg">
+        <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-xl border border-black/8 bg-white shadow-lg">
           <button
-            onClick={() => router.push("/dashboard")}
+            type="button"
+            onClick={handleDashboard}
             className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-50"
           >
             <LayoutDashboard size={15} strokeWidth={1.8} aria-hidden="true" />
             Dashboard
           </button>
           <button
+            type="button"
             onClick={handleLogout}
             className="flex w-full items-center gap-2.5 border-t border-black/6 px-4 py-3 text-left text-xs font-medium text-red-600 transition hover:bg-red-50"
           >
