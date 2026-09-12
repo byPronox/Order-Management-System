@@ -12,4 +12,5 @@ export const endpoints = {
   orders: '/orders',
   auth: '/auth',
   workspaces: '/workspaces',
+  dashboard: '/dashboard/summary',
 } as const

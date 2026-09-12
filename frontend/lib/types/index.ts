@@ -14,3 +14,27 @@ export interface Workspace {
   name: string
   slug: string
 }
+
+export interface DashboardSummary {
+  metrics: {
+    totalCustomers: number
+    customersGrowthPercent: number
+    totalProducts: number
+    lowStockCount: number
+    totalOrders: number
+    ordersGrowthPercent: number
+    totalRevenue: number
+    revenueCompleted: number
+    revenuePending: number
+  }
+  ordersByStatus: { status: OrderStatus; count: number; percentage: number }[]
+  conversionRate: number
+  recentOrders: {
+    id: number
+    customerName: string
+    customerEmail: string
+    status: OrderStatus
+    totalAmount: number
+    createdAt: string
+  }[]
+}
