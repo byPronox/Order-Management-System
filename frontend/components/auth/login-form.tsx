@@ -1,36 +1,78 @@
 'use client'
 
 import { useState } from 'react'
-import { Spinner } from '@/components/ui/loading'
+import { useRouter } from 'next/navigation'
 
 export function LoginForm() {
-  const [isPending, setIsPending] = useState(false)
-  const [message, setMessage] = useState('')
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setMessage('')
-    setIsPending(true)
-    window.setTimeout(() => {
-      setIsPending(false)
-      setMessage('Authentication is ready to connect to your workspace.')
-    }, 700)
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.message ?? 'Invalid credentials')
+      }
+
+      router.push('/dashboard')
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
-      <label className="flex flex-col gap-2 text-sm font-medium text-[#111]">
-        Work email
-        <input name="email" type="email" required autoComplete="email" placeholder="you@company.com" className="h-12 rounded-xl border border-black/15 bg-white px-4 text-sm outline-none transition placeholder:text-black/30 focus:border-black focus:ring-4 focus:ring-black/5" />
-      </label>
-      <label className="flex flex-col gap-2 text-sm font-medium text-[#111]">
-        Password
-        <input name="password" type="password" required minLength={8} autoComplete="current-password" placeholder="Enter your password" className="h-12 rounded-xl border border-black/15 bg-white px-4 text-sm outline-none transition placeholder:text-black/30 focus:border-black focus:ring-4 focus:ring-black/5" />
-      </label>
-      <button type="submit" disabled={isPending} className="button-dark mt-1 w-full disabled:cursor-wait disabled:opacity-60">
-        {isPending ? <Spinner label="Signing in" /> : 'Continue to workspace'}
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <div>
+        <label htmlFor="email" className="mb-1.5 block text-xs font-semibold text-black/60">Email</label>
+        <input
+          id="email"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+          placeholder="you@company.com"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="password" className="mb-1.5 block text-xs font-semibold text-black/60">Password</label>
+        <input
+          id="password"
+          type="password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full rounded-xl border border-black/10 px-4 py-3 text-sm outline-none focus:border-black/30"
+          placeholder="••••••••"
+        />
+      </div>
+
+      {error && <p className="text-xs font-medium text-red-600">{error}</p>}
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="mt-2 flex h-12 items-center justify-center rounded-full bg-black text-sm font-semibold text-white transition hover:bg-black/85 disabled:opacity-50"
+      >
+        {loading ? 'Signing in...' : 'Sign in'}
       </button>
-      {message ? <p className="rounded-xl bg-emerald-50 px-4 py-3 text-center text-xs text-emerald-700" role="status">{message}</p> : null}
     </form>
   )
 }
