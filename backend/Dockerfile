@@ -1,13 +1,12 @@
-FROM node:20-alpine AS production
+FROM node:20-alpine
 
 WORKDIR /app
 
-ENV NODE_ENV=production
-
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
-COPY --from=builder /app/dist ./dist
+COPY . .
+RUN npm run build
 
 EXPOSE 3000
 
