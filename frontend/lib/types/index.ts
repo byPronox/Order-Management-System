@@ -30,11 +30,11 @@ export interface CreateCustomerPayload {
 export interface Product {
   id: string
   name: string
-  description: string
-  sku: string
+  description?: string
+  category?: string
+  sku?: string
   price: number
-  stock: number
-  imageUrl: string
+  stock?: number
   status: ProductStatus
   createdAt: string
   updatedAt: string
@@ -103,4 +103,14 @@ export interface OrderSummary {
   pendingFulfillment: number
   revenueThisMonth: number
   revenueGrowthPercent: number
+}
+
+export interface CreateProductPayload {
+  name: string
+  description?: string
+  category?: string
+  sku?: string
+  price: number
+  stock?: number
+  status?: string
 }

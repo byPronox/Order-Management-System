@@ -1,11 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Download, Plus, Search } from "lucide-react"
+import { Download, Plus, Search, Pencil, Trash2 } from "lucide-react"
 import { productsApi } from "@/lib/api/products"
 import { formatCurrency } from "@/lib/utils"
 import type { Product, ProductStatus } from "@/lib/types"
 import { useWorkspaceId } from "@/lib/hooks/use-workspace-id"
+import { ProductFormModal } from "@/components/dashboard/product-form-modal"
+import { DeleteConfirmDialog } from "@/components/dashboard/delete-confirm-dialog"
 
 const STATUS_TABS: { label: string; value: ProductStatus | "all" }[] = [
   { label: "All products", value: "all" },
@@ -37,6 +39,18 @@ export function ProductsWorkspace() {
   const [search, setSearch] = useState("")
   const [error, setError] = useState<string | null>(null)
 
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  function refetch() {
+    productsApi
+      .list({ workspaceId, search: search || undefined })
+      .then(setProducts)
+      .catch(() => setError("Could not load products."))
+  }
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       productsApi
@@ -47,6 +61,30 @@ export function ProductsWorkspace() {
 
     return () => clearTimeout(timeout)
   }, [workspaceId, search])
+
+  function openCreateForm() {
+    setEditingProduct(null)
+    setFormOpen(true)
+  }
+
+  function openEditForm(product: Product) {
+    setEditingProduct(product)
+    setFormOpen(true)
+  }
+
+  async function handleDelete() {
+    if (!deletingProduct) return
+    setDeleting(true)
+    try {
+      await productsApi.remove(deletingProduct.id, workspaceId)
+      setDeletingProduct(null)
+      refetch()
+    } catch {
+      setError("Could not delete this product.")
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const filteredProducts = products?.filter((p) => activeTab === "all" || p.status === activeTab) ?? null
   const lowStockCount = products?.filter((p) => p.stock !== null && p.stock !== undefined && p.stock < 10).length ?? 0
@@ -70,7 +108,11 @@ export function ProductsWorkspace() {
             <button type="button" className="flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2.5 text-xs font-semibold">
               <Download size={14} /> Export CSV
             </button>
-            <button type="button" className="flex items-center gap-2 rounded-full bg-black px-4 py-2.5 text-xs font-semibold text-white">
+            <button
+              type="button"
+              onClick={openCreateForm}
+              className="flex items-center gap-2 rounded-full bg-black px-4 py-2.5 text-xs font-semibold text-white"
+            >
               <Plus size={14} /> Add product
             </button>
           </div>
@@ -136,34 +178,35 @@ export function ProductsWorkspace() {
           </div>
 
           <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-[820px] text-left text-sm">
               <thead>
                 <tr className="border-b border-black/6 text-xs uppercase tracking-[.08em] text-neutral-400">
                   <th className="pb-3 font-medium">Product & specification</th>
                   <th className="pb-3 font-medium">SKU</th>
                   <th className="pb-3 font-medium">Price</th>
                   <th className="pb-3 font-medium">Availability</th>
-                  <th className="pb-3 text-right font-medium">Status</th>
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProducts === null && !error && (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-sm text-neutral-400">
+                    <td colSpan={6} className="py-10 text-center text-sm text-neutral-400">
                       Loading products...
                     </td>
                   </tr>
                 )}
                 {error && (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-sm text-red-500">
+                    <td colSpan={6} className="py-10 text-center text-sm text-red-500">
                       {error}
                     </td>
                   </tr>
                 )}
                 {filteredProducts && filteredProducts.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center text-sm text-neutral-400">
+                    <td colSpan={6} className="py-10 text-center text-sm text-neutral-400">
                       No products match your filters.
                     </td>
                   </tr>
@@ -183,11 +226,31 @@ export function ProductsWorkspace() {
                         ? "Unlimited digital"
                         : `${product.stock} units`}
                     </td>
-                    <td className="py-4 text-right">
+                    <td className="py-4">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${STATUS_BADGE[product.status]}`}>
                         <span className={`size-1.5 rounded-full ${STATUS_DOT[product.status]}`} />
                         {statusLabel(product.status)}
                       </span>
+                    </td>
+                    <td className="py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEditForm(product)}
+                          className="grid size-8 place-items-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900"
+                          aria-label={`Edit ${product.name}`}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeletingProduct(product)}
+                          className="grid size-8 place-items-center rounded-lg text-neutral-400 hover:bg-red-50 hover:text-red-600"
+                          aria-label={`Delete ${product.name}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -202,6 +265,25 @@ export function ProductsWorkspace() {
           )}
         </div>
       </div>
+
+      {formOpen && (
+        <ProductFormModal
+          workspaceId={workspaceId}
+          product={editingProduct}
+          onClose={() => setFormOpen(false)}
+          onSaved={refetch}
+        />
+      )}
+
+      {deletingProduct && (
+        <DeleteConfirmDialog
+          title="Delete this product?"
+          description={`"${deletingProduct.name}" will be removed from the active catalog. Existing orders that include this product are preserved for record-keeping.`}
+          onCancel={() => setDeletingProduct(null)}
+          onConfirm={handleDelete}
+          loading={deleting}
+        />
+      )}
     </div>
   )
 }
