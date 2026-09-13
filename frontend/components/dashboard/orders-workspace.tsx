@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowUpRight, Download, Plus, Search } from "lucide-react"
+import { Download, Plus, Search } from "lucide-react"
 import { ordersApi } from "@/lib/api/orders"
 import { formatCurrency, getInitials } from "@/lib/utils"
 import type { Order, OrderStatus, OrderSummary } from "@/lib/types"
 import { useWorkspaceId } from "@/lib/hooks/use-workspace-id"
+import { CreateOrderModal } from "@/components/dashboard/create-order-modal"
 
 const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
   { label: "All orders", value: "all" },
@@ -37,6 +38,19 @@ export function OrdersWorkspace() {
   const [activeTab, setActiveTab] = useState<OrderStatus | "all">("all")
   const [search, setSearch] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+
+  function refetch() {
+    ordersApi.getSummary(workspaceId).then(setSummary).catch(() => {})
+    ordersApi
+      .list({
+        workspaceId,
+        status: activeTab === "all" ? undefined : activeTab,
+        search: search || undefined,
+      })
+      .then(setOrders)
+      .catch(() => setError("Could not load orders."))
+  }
 
   useEffect(() => {
     ordersApi.getSummary(workspaceId).then(setSummary).catch(() => {})
@@ -75,7 +89,11 @@ export function OrdersWorkspace() {
             <button type="button" className="flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2.5 text-xs font-semibold">
               <Download size={14} /> Export report
             </button>
-            <button type="button" className="flex items-center gap-2 rounded-full bg-black px-4 py-2.5 text-xs font-semibold text-white">
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="flex items-center gap-2 rounded-full bg-black px-4 py-2.5 text-xs font-semibold text-white"
+            >
               <Plus size={14} /> Create order
             </button>
           </div>
@@ -215,6 +233,14 @@ export function OrdersWorkspace() {
           )}
         </div>
       </div>
+
+      {modalOpen && (
+        <CreateOrderModal
+          workspaceId={workspaceId}
+          onClose={() => setModalOpen(false)}
+          onCreated={refetch}
+        />
+      )}
     </div>
   )
 }

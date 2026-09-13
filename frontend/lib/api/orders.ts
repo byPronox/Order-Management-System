@@ -18,4 +18,11 @@ export const ordersApi = {
     const query = workspaceId ? `?workspaceId=${workspaceId}` : ''
     return apiFetch<OrderSummary>(`${endpoints.ordersSummary}${query}`)
   },
+  create: (data: { customerId: number; items: { productId: number; quantity: number }[] }, workspaceId?: number) => {
+    const query = workspaceId ? `?workspaceId=${workspaceId}` : ''
+    return apiFetch<Order>(`${endpoints.orders}${query}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
 }
