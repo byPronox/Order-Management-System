@@ -19,7 +19,16 @@ export class OrderItem {
   @Column({ name: 'unit_price', type: 'decimal', precision: 10, scale: 2 })
   unitPrice: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, insert: false, update: false })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    insert: false,
+    update: false,
+    select: true,
+    generatedType: 'STORED',
+    asExpression: 'quantity * unit_price',
+  })
   subtotal: number;
 
   @ManyToOne(() => Order, (order) => order.items)
