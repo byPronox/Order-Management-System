@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Check, ChevronDown } from "lucide-react"
 import { workspacesApi } from "@/lib/api/workspaces"
@@ -28,20 +28,34 @@ export function WorkspaceSwitcher() {
     return getCookie("workspace_name") ?? DEFAULT_WORKSPACE.name
   })
 
-  useEffect(() => {
+  const fetchWorkspaces = useCallback(() => {
     workspacesApi.list().then((data) => {
       setWorkspaces(data)
 
-      if (!getCookie("workspace_id") && data.length > 0) {
+      const cookieId = getCookie("workspace_id")
+      const currentId = cookieId ? Number(cookieId) : data[0]?.id
+
+      // Refresca el nombre visible en caso de que haya sido renombrado
+      const current = data.find((w) => w.id === currentId)
+      if (current) {
+        setActiveId(current.id)
+        setActiveName(current.name)
+        document.cookie = `workspace_name=${encodeURIComponent(current.name)}; path=/; max-age=${60 * 60 * 24 * 30}`
+      }
+
+      if (!cookieId && data.length > 0) {
         const first = data[0]
-        setActiveId(first.id)
-        setActiveName(first.name)
         document.cookie = `workspace_id=${first.id}; path=/; max-age=${60 * 60 * 24 * 30}`
         document.cookie = `workspace_name=${encodeURIComponent(first.name)}; path=/; max-age=${60 * 60 * 24 * 30}`
       }
-    }).catch(() => {
-    })
+    }).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    fetchWorkspaces()
+    window.addEventListener("workspace-changed", fetchWorkspaces)
+    return () => window.removeEventListener("workspace-changed", fetchWorkspaces)
+  }, [fetchWorkspaces])
 
   useEffect(() => {
     if (!open) return
@@ -58,20 +72,20 @@ export function WorkspaceSwitcher() {
     }
   }, [open])
 
-    async function handleSelect(workspace: Workspace) {
+  async function handleSelect(workspace: Workspace) {
     setActiveId(workspace.id)
     setActiveName(workspace.name)
     setOpen(false)
 
     await fetch("/api/workspace", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId: workspace.id, workspaceName: workspace.name }),
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workspaceId: workspace.id, workspaceName: workspace.name }),
     })
 
-    window.dispatchEvent(new CustomEvent("workspace-changed")) // ← nuevo
+    window.dispatchEvent(new CustomEvent("workspace-changed"))
     router.refresh()
-    }
+  }
 
   const list = workspaces.length > 0 ? workspaces : [DEFAULT_WORKSPACE]
 

@@ -11,7 +11,14 @@ export interface WorkspaceSettingsData {
   notifyCustomersOnStatus: boolean
 }
 
+export type UpdateWorkspaceSettingsPayload = Partial<Omit<WorkspaceSettingsData, "workspaceId">>
+
 export const workspaceSettingsApi = {
   get: (workspaceId: number) =>
     apiFetch<WorkspaceSettingsData>(`${endpoints.workspaceSettings}?workspaceId=${workspaceId}`),
+  update: (workspaceId: number, data: UpdateWorkspaceSettingsPayload) =>
+    apiFetch<WorkspaceSettingsData>(`${endpoints.workspaceSettings}?workspaceId=${workspaceId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
 }
