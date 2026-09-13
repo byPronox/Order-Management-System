@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react"
 import { ArrowUpRight, Download, Plus, Search } from "lucide-react"
 import { ordersApi } from "@/lib/api/orders"
-import { formatCurrency, getCookie, getInitials } from "@/lib/utils"
+import { formatCurrency, getInitials } from "@/lib/utils"
 import type { Order, OrderStatus, OrderSummary } from "@/lib/types"
+import { useWorkspaceId } from "@/lib/hooks/use-workspace-id"
 
 const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
   { label: "All orders", value: "all" },
@@ -30,26 +31,12 @@ function formatDate(dateString: string) {
 }
 
 export function OrdersWorkspace() {
+  const workspaceId = useWorkspaceId()
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [summary, setSummary] = useState<OrderSummary | null>(null)
   const [activeTab, setActiveTab] = useState<OrderStatus | "all">("all")
   const [search, setSearch] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const [workspaceId, setWorkspaceId] = useState<number | undefined>(undefined)
-
-  // Lee la cookie al montar Y cada vez que la ventana recupera el foco
-  // (cubre el caso de cambiar workspace y volver a esta pestaña)
-  useEffect(() => {
-    function syncWorkspace() {
-      const raw = getCookie("workspace_id")
-      setWorkspaceId(raw ? Number(raw) : undefined)
-    }
-    syncWorkspace()
-
-    // Detecta el cambio de cookie por polling ligero (no hay evento nativo de "cookie changed")
-    const interval = setInterval(syncWorkspace, 1000)
-    return () => clearInterval(interval)
-  }, [])
 
   useEffect(() => {
     ordersApi.getSummary(workspaceId).then(setSummary).catch(() => {})

@@ -58,19 +58,20 @@ export function WorkspaceSwitcher() {
     }
   }, [open])
 
-  async function handleSelect(workspace: Workspace) {
+    async function handleSelect(workspace: Workspace) {
     setActiveId(workspace.id)
     setActiveName(workspace.name)
     setOpen(false)
 
     await fetch("/api/workspace", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ workspaceId: workspace.id, workspaceName: workspace.name }),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: workspace.id, workspaceName: workspace.name }),
     })
 
+    window.dispatchEvent(new CustomEvent("workspace-changed")) // ← nuevo
     router.refresh()
-  }
+    }
 
   const list = workspaces.length > 0 ? workspaces : [DEFAULT_WORKSPACE]
 

@@ -13,5 +13,6 @@ export const endpoints = {
   ordersSummary: '/orders/summary',
   auth: '/auth',
   workspaces: '/workspaces',
+  workspaceSettings: '/workspace-settings',
   dashboard: '/dashboard/summary',
 } as const
