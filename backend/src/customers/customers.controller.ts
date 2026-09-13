@@ -1,5 +1,7 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { CustomersService } from './customers.service';
+import { CreateCustomerDto } from './dto/create-customer.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 @Controller('customers')
 export class CustomersController {
@@ -13,5 +15,24 @@ export class CustomersController {
   @Get(':id')
   findOne(@Param('id') id: string, @Query('workspaceId') workspaceId?: string) {
     return this.customersService.findOne(+id, workspaceId ? +workspaceId : undefined);
+  }
+
+  @Post()
+  create(@Body() dto: CreateCustomerDto, @Query('workspaceId') workspaceId?: string) {
+    return this.customersService.create(dto, workspaceId ? +workspaceId : 1);
+  }
+
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateCustomerDto,
+    @Query('workspaceId') workspaceId?: string,
+  ) {
+    return this.customersService.update(+id, dto, workspaceId ? +workspaceId : undefined);
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string, @Query('workspaceId') workspaceId?: string) {
+    return this.customersService.remove(+id, workspaceId ? +workspaceId : undefined);
   }
 }
