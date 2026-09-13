@@ -1,5 +1,6 @@
-import { Controller, Get, Query, BadRequestException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Patch, Query } from '@nestjs/common';
 import { WorkspaceSettingsService } from './workspace-settings.service';
+import { UpdateWorkspaceSettingsDto } from './dto/update-workspace-settings.dto';
 
 @Controller('workspace-settings')
 export class WorkspaceSettingsController {
@@ -9,5 +10,11 @@ export class WorkspaceSettingsController {
   findSettings(@Query('workspaceId') workspaceId?: string) {
     if (!workspaceId) throw new BadRequestException('workspaceId is required');
     return this.settingsService.findByWorkspace(+workspaceId);
+  }
+
+  @Patch()
+  update(@Query('workspaceId') workspaceId: string, @Body() dto: UpdateWorkspaceSettingsDto) {
+    if (!workspaceId) throw new BadRequestException('workspaceId is required');
+    return this.settingsService.update(+workspaceId, dto);
   }
 }
