@@ -1,13 +1,34 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Order, OrderStatus } from './entities/order.entity';
+import { OrderItem } from './entities/order-item.entity';
+import { Product } from '../products/entities/product.entity';
+import { Customer } from '../customers/entities/customer.entity';
+import { CreateOrderDto } from './dto/create-order.dto';
+
+// Transiciones de estado permitidas: pending -> completed | cancelled.
+// completed y cancelled son estados terminales (no se pueden volver a cambiar).
+const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  [OrderStatus.PENDING]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+  [OrderStatus.COMPLETED]: [],
+  [OrderStatus.CANCELLED]: [],
+};
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectRepository(Order)
     private readonly ordersRepository: Repository<Order>,
+    @InjectRepository(Product)
+    private readonly productsRepository: Repository<Product>,
+    @InjectRepository(Customer)
+    private readonly customersRepository: Repository<Customer>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(params: { workspaceId?: number; status?: OrderStatus; search?: string }) {
@@ -41,14 +62,81 @@ export class OrdersService {
     return order;
   }
 
+  async create(dto: CreateOrderDto, workspaceId: number, createdByUserId?: number) {
+    // Validar que el cliente exista y pertenezca a este workspace
+    const customer = await this.customersRepository.findOne({
+      where: { id: dto.customerId, workspaceId },
+    });
+    if (!customer) {
+      throw new NotFoundException(`Customer #${dto.customerId} not found in this workspace`);
+    }
+
+    // Cargar todos los productos referenciados de una sola vez
+    const productIds = dto.items.map((item) => item.productId);
+    const products = await this.productsRepository.find({
+      where: productIds.map((id) => ({ id, workspaceId })),
+    });
+
+    if (products.length !== new Set(productIds).size) {
+      throw new BadRequestException('One or more products were not found in this workspace');
+    }
+
+    const productMap = new Map(products.map((p) => [p.id, p]));
+
+    // Construir los items con snapshot del precio actual del producto
+    let totalAmount = 0;
+    const orderItems: OrderItem[] = dto.items.map((itemDto) => {
+      const product = productMap.get(itemDto.productId)!;
+      const unitPrice = Number(product.price);
+      totalAmount += unitPrice * itemDto.quantity;
+
+      const orderItem = new OrderItem();
+      orderItem.productId = product.id;
+      orderItem.quantity = itemDto.quantity;
+      orderItem.unitPrice = unitPrice;
+      return orderItem;
+    });
+
+    const order = this.ordersRepository.create({
+      workspaceId,
+      customerId: dto.customerId,
+      createdByUserId,
+      status: OrderStatus.PENDING,
+      totalAmount,
+      items: orderItems,
+    });
+
+    const saved = await this.ordersRepository.save(order);
+    return this.findOne(saved.id, workspaceId);
+  }
+
+  async updateStatus(id: number, newStatus: OrderStatus, workspaceId?: number) {
+    const order = await this.findOne(id, workspaceId);
+
+    const allowed = ALLOWED_TRANSITIONS[order.status];
+    if (!allowed.includes(newStatus)) {
+      throw new BadRequestException(
+        `Cannot transition order from "${order.status}" to "${newStatus}"`,
+      );
+    }
+
+    order.status = newStatus;
+    if (newStatus === OrderStatus.CANCELLED) {
+      order.cancelledAt = new Date();
+    }
+
+    await this.ordersRepository.save(order);
+    return this.findOne(id, workspaceId);
+  }
+
   async getSummary(workspaceId?: number) {
+    // ...se mantiene igual que ya lo teníamos, sin cambios...
     const now = new Date();
     const currentStart = new Date(now);
     currentStart.setDate(now.getDate() - 30);
     const previousStart = new Date(now);
     previousStart.setDate(now.getDate() - 60);
     const previousEnd = currentStart;
-
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     const base = () => {
@@ -58,20 +146,11 @@ export class OrdersService {
     };
 
     const totalOrders = await base().getCount();
-
-    const ordersCurrentPeriod = await base()
-      .andWhere('o.created_at >= :start', { start: currentStart })
-      .getCount();
+    const ordersCurrentPeriod = await base().andWhere('o.created_at >= :start', { start: currentStart }).getCount();
     const ordersPreviousPeriod = await base()
-      .andWhere('o.created_at >= :start AND o.created_at < :end', {
-        start: previousStart,
-        end: previousEnd,
-      })
+      .andWhere('o.created_at >= :start AND o.created_at < :end', { start: previousStart, end: previousEnd })
       .getCount();
-
-    const pendingFulfillment = await base()
-      .andWhere('o.status = :status', { status: OrderStatus.PENDING })
-      .getCount();
+    const pendingFulfillment = await base().andWhere('o.status = :status', { status: OrderStatus.PENDING }).getCount();
 
     const revenueThisMonthRow = await base()
       .andWhere('o.created_at >= :monthStart', { monthStart })
@@ -82,10 +161,7 @@ export class OrdersService {
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd = monthStart;
     const revenueLastMonthRow = await base()
-      .andWhere('o.created_at >= :start AND o.created_at < :end', {
-        start: lastMonthStart,
-        end: lastMonthEnd,
-      })
+      .andWhere('o.created_at >= :start AND o.created_at < :end', { start: lastMonthStart, end: lastMonthEnd })
       .andWhere('o.status != :cancelled', { cancelled: OrderStatus.CANCELLED })
       .select('SUM(o.total_amount)', 'total')
       .getRawOne();
