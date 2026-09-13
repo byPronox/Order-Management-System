@@ -11,8 +11,6 @@ import { Product } from '../products/entities/product.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 
-// Transiciones de estado permitidas: pending -> completed | cancelled.
-// completed y cancelled son estados terminales (no se pueden volver a cambiar).
 const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   [OrderStatus.PENDING]: [OrderStatus.COMPLETED, OrderStatus.CANCELLED],
   [OrderStatus.COMPLETED]: [],
@@ -71,7 +69,6 @@ export class OrdersService {
       throw new NotFoundException(`Customer #${dto.customerId} not found in this workspace`);
     }
 
-    // Cargar todos los productos referenciados de una sola vez
     const productIds = dto.items.map((item) => item.productId);
     const products = await this.productsRepository.find({
       where: productIds.map((id) => ({ id, workspaceId })),
@@ -81,17 +78,19 @@ export class OrdersService {
       throw new BadRequestException('One or more products were not found in this workspace');
     }
 
-    const productMap = new Map(products.map((p) => [p.id, p]));
+    const productMap = new Map(products.map((p) => [Number(p.id), p]));
 
-    // Construir los items con snapshot del precio actual del producto
     let totalAmount = 0;
     const orderItems: OrderItem[] = dto.items.map((itemDto) => {
-      const product = productMap.get(itemDto.productId)!;
+      const product = productMap.get(Number(itemDto.productId));
+      if (!product) {
+        throw new BadRequestException(`Product #${itemDto.productId} not found`);
+      }
       const unitPrice = Number(product.price);
       totalAmount += unitPrice * itemDto.quantity;
 
       const orderItem = new OrderItem();
-      orderItem.productId = product.id;
+      orderItem.productId = Number(product.id);
       orderItem.quantity = itemDto.quantity;
       orderItem.unitPrice = unitPrice;
       return orderItem;
@@ -130,7 +129,6 @@ export class OrdersService {
   }
 
   async getSummary(workspaceId?: number) {
-    // ...se mantiene igual que ya lo teníamos, sin cambios...
     const now = new Date();
     const currentStart = new Date(now);
     currentStart.setDate(now.getDate() - 30);
