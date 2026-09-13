@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Workspace } from '../../workspaces/entities/workspace.entity';
 
 export enum CustomerType {
   INDIVIDUAL = 'individual',
@@ -16,6 +17,9 @@ export class Customer {
   @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
   id: number;
 
+  @Column({ name: 'workspace_id', type: 'bigint', unsigned: true, default: 1 })
+  workspaceId: number;
+
   @Column({ length: 150 })
   name: string;
 
@@ -25,7 +29,7 @@ export class Customer {
   @Column({ name: 'customer_type', type: 'enum', enum: CustomerType, default: CustomerType.INDIVIDUAL })
   customerType: CustomerType;
 
-  @Column({ length: 191, unique: true })
+  @Column({ length: 191 })
   email: string;
 
   @Column({ length: 30, nullable: true })
@@ -45,4 +49,8 @@ export class Customer {
 
   @DeleteDateColumn({ name: 'deleted_at' })
   deletedAt: Date;
+
+  @ManyToOne(() => Workspace)
+  @JoinColumn({ name: 'workspace_id' })
+  workspace: Workspace;
 }

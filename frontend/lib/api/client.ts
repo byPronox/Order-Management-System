@@ -10,6 +10,7 @@ export const endpoints = {
   customers: '/customers',
   products: '/products',
   orders: '/orders',
+  ordersSummary: '/orders/summary',
   auth: '/auth',
   workspaces: '/workspaces',
   dashboard: '/dashboard/summary',

@@ -1,10 +1,11 @@
-import { Entity, PrimaryColumn, Column, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryColumn, Column, UpdateDateColumn, OneToOne, JoinColumn } from 'typeorm';
 import { OrderStatus } from '../../orders/entities/order.entity';
+import { Workspace } from '../../workspaces/entities/workspace.entity';
 
 @Entity('workspace_settings')
 export class WorkspaceSettings {
-  @PrimaryColumn({ type: 'tinyint', unsigned: true, default: 1 })
-  id: number;
+  @PrimaryColumn({ name: 'workspace_id', type: 'bigint', unsigned: true })
+  workspaceId: number;
 
   @Column({ name: 'workspace_name', length: 150, default: 'Orderly HQ' })
   workspaceName: string;
@@ -29,4 +30,8 @@ export class WorkspaceSettings {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  @OneToOne(() => Workspace)
+  @JoinColumn({ name: 'workspace_id' })
+  workspace: Workspace;
 }

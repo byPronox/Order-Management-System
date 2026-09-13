@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Workspace } from '../../workspaces/entities/workspace.entity';
 
 export enum ProductStatus {
   ACTIVE = 'active',
@@ -11,6 +12,9 @@ export class Product {
   @PrimaryGeneratedColumn({ type: 'bigint', unsigned: true })
   id: number;
 
+  @Column({ name: 'workspace_id', type: 'bigint', unsigned: true, default: 1 })
+  workspaceId: number;
+
   @Column({ length: 150 })
   name: string;
 
@@ -20,7 +24,7 @@ export class Product {
   @Column({ length: 100, nullable: true })
   category: string;
 
-  @Column({ length: 50, nullable: true, unique: true })
+  @Column({ length: 50, nullable: true })
   sku: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
@@ -43,4 +47,8 @@ export class Product {
 
   @DeleteDateColumn({ name: 'deleted_at' })
   deletedAt: Date;
+
+  @ManyToOne(() => Workspace)
+  @JoinColumn({ name: 'workspace_id' })
+  workspace: Workspace;
 }

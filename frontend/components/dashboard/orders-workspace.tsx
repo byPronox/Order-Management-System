@@ -1,34 +1,233 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { ArrowDownToLine, Plus, Search, SlidersHorizontal } from "lucide-react"
-import { StatusDot } from "@/components/ui/status"
-import { formatCurrency } from "@/lib/utils"
-import type { OrderStatus } from "@/lib/types"
-import { workspaceSettings } from "@/lib/mock-data/workspace-settings"
+import { useEffect, useState } from "react"
+import { ArrowUpRight, Download, Plus, Search } from "lucide-react"
+import { ordersApi } from "@/lib/api/orders"
+import { formatCurrency, getCookie, getInitials } from "@/lib/utils"
+import type { Order, OrderStatus, OrderSummary } from "@/lib/types"
 
-const orders: Array<{ id: string; customer: string; email: string; date: string; total: number; items: number; status: OrderStatus }> = [
-  { id: "ORD-1048", customer: "Olivia Martin", email: "olivia.martin@example.com", date: "Sep 11, 2026", total: 248, items: 3, status: "pending" },
-  { id: "ORD-1047", customer: "Ethan Walker", email: "ethan.walker@example.com", date: "Sep 11, 2026", total: 84.5, items: 1, status: "completed" },
-  { id: "ORD-1046", customer: "Sophia Carter", email: "sophia.carter@example.com", date: "Sep 10, 2026", total: 512.25, items: 5, status: "completed" },
-  { id: "ORD-1045", customer: "James Wilson", email: "james.wilson@example.com", date: "Sep 10, 2026", total: 129, items: 2, status: "pending" },
-  { id: "ORD-1044", customer: "Amelia Brown", email: "amelia.brown@example.com", date: "Sep 09, 2026", total: 76, items: 1, status: "cancelled" },
-  { id: "ORD-1043", customer: "Noah Davis", email: "noah.davis@example.com", date: "Sep 09, 2026", total: 346.8, items: 4, status: "completed" },
+const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
+  { label: "All orders", value: "all" },
+  { label: "Pending", value: "pending" },
+  { label: "Completed", value: "completed" },
+  { label: "Cancelled", value: "cancelled" },
 ]
-const tabs = ["All orders", "Pending", "Completed", "Cancelled"] as const
-type Tab = (typeof tabs)[number]
-const statusTone: Record<OrderStatus, "success" | "warning" | "danger"> = { pending: "warning", completed: "success", cancelled: "danger" }
-const statusLabels: Record<OrderStatus, string> = { pending: "Pending", completed: "Completed", cancelled: "Cancelled" }
+
+const STATUS_BADGE: Record<string, string> = {
+  completed: "bg-emerald-50 text-emerald-700",
+  pending: "bg-amber-50 text-amber-700",
+  cancelled: "bg-neutral-100 text-neutral-500",
+}
+
+const STATUS_DOT: Record<string, string> = {
+  completed: "bg-emerald-500",
+  pending: "bg-amber-400",
+  cancelled: "bg-neutral-400",
+}
+
+function formatDate(dateString: string) {
+  return new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })
+}
 
 export function OrdersWorkspace() {
-  const [activeTab, setActiveTab] = useState<Tab>("All orders")
-  const [query, setQuery] = useState("")
-  const filteredOrders = useMemo(() => orders.filter((order) => {
-    const matchesTab = activeTab === "All orders" || statusLabels[order.status] === activeTab
-    const normalizedQuery = query.trim().toLowerCase()
-    return matchesTab && (!normalizedQuery || `${order.id} ${order.customer} ${order.email}`.toLowerCase().includes(normalizedQuery))
-  }), [activeTab, query])
-  return <main className="mx-auto max-w-[1440px] px-5 py-6 sm:px-8 lg:px-10 lg:py-9"><header className="flex flex-col gap-5 border-b border-black/[.07] pb-7 xl:flex-row xl:items-end xl:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[.2em] text-black/40">Workspace / Orders</p><h1 className="mt-3 font-display text-4xl tracking-[-.06em] text-neutral-950 sm:text-5xl">Orders</h1><p className="mt-2 text-sm text-black/45">Track, manage and fulfill every order from one place.</p></div><div className="flex flex-wrap gap-2"><button className="inline-flex items-center gap-2 rounded-xl border border-black/[.08] bg-white px-4 py-2.5 text-xs font-semibold text-neutral-700"><ArrowDownToLine size={15} /> Export report</button><button className="inline-flex items-center gap-2 rounded-xl bg-black px-4 py-2.5 text-xs font-semibold text-white"><Plus size={15} /> Create order</button></div></header><section className="mt-7 grid gap-3 sm:grid-cols-3"><Metric label="Total orders" value="1,284" detail="+12.4% from last month" /><Metric label="Pending fulfillment" value="38" detail="Needs attention today" /><Metric label="Revenue this month" value={formatCurrency(48920, workspaceSettings.defaultCurrency)} detail="+8.7% from last month" /></section><section className="mt-7 overflow-hidden rounded-2xl border border-black/[.07] bg-white shadow-sm"><div className="flex flex-col gap-4 border-b border-black/[.07] p-4 lg:flex-row lg:items-center lg:justify-between"><div className="flex gap-1 overflow-x-auto">{tabs.map((tab) => <button key={tab} onClick={() => setActiveTab(tab)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-xs font-semibold ${activeTab === tab ? "bg-black text-white" : "text-black/45 hover:bg-black/[.04]"}`}>{tab}{tab === "All orders" && <span className="ml-1.5 opacity-60">1,284</span>}</button>)}</div><div className="flex gap-2"><label className="relative flex min-w-0 flex-1 items-center sm:w-64"><Search size={15} className="pointer-events-none absolute left-3 text-black/35" /><span className="sr-only">Search orders</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search orders..." className="h-9 w-full rounded-lg border border-black/[.08] bg-[#fdfbfb] pl-9 pr-3 text-xs outline-none" /></label><button className="grid size-9 place-items-center rounded-lg border border-black/[.08] text-black/45" aria-label="Filter orders"><SlidersHorizontal size={15} /></button></div></div><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead className="bg-[#fcfafa]"><tr className="text-[10px] font-semibold uppercase tracking-[.14em] text-black/35"><th className="px-5 py-3">Order</th><th className="px-4 py-3">Customer</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Items</th><th className="px-4 py-3">Total</th><th className="px-4 py-3">Status</th></tr></thead><tbody className="divide-y divide-black/[.06]">{filteredOrders.map((order) => <tr key={order.id} className="transition hover:bg-[#fdfafa]"><td className="px-5 py-4 font-mono text-xs font-medium">{order.id}</td><td className="px-4 py-4"><p className="font-semibold text-sm">{order.customer}</p><p className="mt-1 text-xs text-black/40">{order.email}</p></td><td className="px-4 py-4 text-sm text-black/55">{order.date}</td><td className="px-4 py-4 text-sm">{order.items}</td><td className="px-4 py-4 text-sm font-semibold">{formatCurrency(order.total, workspaceSettings.defaultCurrency)}</td><td className="px-4 py-4"><StatusDot label={statusLabels[order.status]} status={statusTone[order.status]} /></td></tr>)}</tbody></table></div></section></main>
+  const [orders, setOrders] = useState<Order[] | null>(null)
+  const [summary, setSummary] = useState<OrderSummary | null>(null)
+  const [activeTab, setActiveTab] = useState<OrderStatus | "all">("all")
+  const [search, setSearch] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [workspaceId, setWorkspaceId] = useState<number | undefined>(undefined)
+
+  // Lee la cookie al montar Y cada vez que la ventana recupera el foco
+  // (cubre el caso de cambiar workspace y volver a esta pestaña)
+  useEffect(() => {
+    function syncWorkspace() {
+      const raw = getCookie("workspace_id")
+      setWorkspaceId(raw ? Number(raw) : undefined)
+    }
+    syncWorkspace()
+
+    // Detecta el cambio de cookie por polling ligero (no hay evento nativo de "cookie changed")
+    const interval = setInterval(syncWorkspace, 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    ordersApi.getSummary(workspaceId).then(setSummary).catch(() => {})
+  }, [workspaceId])
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      ordersApi
+        .list({
+          workspaceId,
+          status: activeTab === "all" ? undefined : activeTab,
+          search: search || undefined,
+        })
+        .then(setOrders)
+        .catch(() => setError("Could not load orders."))
+    }, 300)
+
+    return () => clearTimeout(timeout)
+  }, [workspaceId, activeTab, search])
+
+  return (
+    <div className="flex-1 p-6 lg:p-10">
+      <div className="mx-auto max-w-7xl">
+        <p className="text-xs font-semibold uppercase tracking-[.14em] text-neutral-400">
+          Workspace / <span className="text-neutral-900">Orders</span>
+        </p>
+
+        <div className="mt-5 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display text-5xl tracking-[-.04em]">Orders</h1>
+            <p className="mt-3 max-w-lg text-sm leading-6 text-neutral-500">
+              Track, manage and fulfill every order from one place.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2.5 text-xs font-semibold">
+              <Download size={14} /> Export report
+            </button>
+            <button type="button" className="flex items-center gap-2 rounded-full bg-black px-4 py-2.5 text-xs font-semibold text-white">
+              <Plus size={14} /> Create order
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-3xl bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[.1em] text-neutral-400">Total orders</p>
+            <p className="mt-4 font-display text-4xl tracking-[-.03em]">{summary?.totalOrders.toLocaleString() ?? "—"}</p>
+            {summary && (
+              <p className="mt-2 text-xs text-neutral-500">
+                <span className={summary.ordersGrowthPercent >= 0 ? "font-semibold text-emerald-600" : "font-semibold text-red-600"}>
+                  {summary.ordersGrowthPercent >= 0 ? "+" : ""}{summary.ordersGrowthPercent}%
+                </span>{" "}
+                from last month
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-3xl bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[.1em] text-neutral-400">Pending fulfillment</p>
+            <p className="mt-4 font-display text-4xl tracking-[-.03em]">{summary?.pendingFulfillment.toLocaleString() ?? "—"}</p>
+            <p className="mt-2 text-xs text-amber-600">Needs attention today</p>
+          </div>
+
+          <div className="rounded-3xl bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[.1em] text-neutral-400">Revenue this month</p>
+            <p className="mt-4 font-display text-4xl tracking-[-.03em]">{formatCurrency(summary?.revenueThisMonth ?? 0)}</p>
+            {summary && (
+              <p className="mt-2 text-xs text-neutral-500">
+                <span className={summary.revenueGrowthPercent >= 0 ? "font-semibold text-emerald-600" : "font-semibold text-red-600"}>
+                  {summary.revenueGrowthPercent >= 0 ? "+" : ""}{summary.revenueGrowthPercent}%
+                </span>{" "}
+                from last month
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-7 rounded-3xl bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap gap-1 rounded-full bg-neutral-100 p-1">
+              {STATUS_TABS.map((tab) => (
+                <button
+                  key={tab.value}
+                  type="button"
+                  onClick={() => setActiveTab(tab.value)}
+                  className={`rounded-full px-4 py-2 text-xs font-semibold transition ${
+                    activeTab === tab.value ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"
+                  }`}
+                >
+                  {tab.label}
+                  {tab.value === "all" && summary && ` ${summary.totalOrders.toLocaleString()}`}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative">
+              <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search orders..."
+                className="w-56 rounded-full border border-black/10 bg-neutral-50 py-2 pl-9 pr-4 text-xs outline-none focus:border-black/25"
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-black/6 text-xs uppercase tracking-[.08em] text-neutral-400">
+                  <th className="pb-3 font-medium">Order</th>
+                  <th className="pb-3 font-medium">Customer</th>
+                  <th className="pb-3 font-medium">Date</th>
+                  <th className="pb-3 font-medium">Items</th>
+                  <th className="pb-3 font-medium">Total</th>
+                  <th className="pb-3 text-right font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders === null && !error && (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center text-sm text-neutral-400">
+                      Loading orders...
+                    </td>
+                  </tr>
+                )}
+                {error && (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center text-sm text-red-500">
+                      {error}
+                    </td>
+                  </tr>
+                )}
+                {orders && orders.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="py-10 text-center text-sm text-neutral-400">
+                      No orders match your filters.
+                    </td>
+                  </tr>
+                )}
+                {orders?.map((order) => (
+                  <tr key={order.id} className="border-b border-black/4 last:border-0">
+                    <td className="py-4 font-mono text-xs font-semibold">ORD-{order.id}</td>
+                    <td className="py-4">
+                      <div className="flex items-center gap-2.5">
+                        <span className="grid size-7 place-items-center rounded-full bg-neutral-900 text-[10px] font-semibold text-white">
+                          {getInitials(order.customer?.name ?? "??")}
+                        </span>
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-900">{order.customer?.name}</p>
+                          <p className="text-[11px] text-neutral-400">{order.customer?.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 text-xs text-neutral-500">{formatDate(order.createdAt)}</td>
+                    <td className="py-4 text-xs text-neutral-500">{order.items?.length ?? 0}</td>
+                    <td className="py-4 text-xs font-semibold">{formatCurrency(Number(order.totalAmount))}</td>
+                    <td className="py-4 text-right">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${STATUS_BADGE[order.status]}`}>
+                        <span className={`size-1.5 rounded-full ${STATUS_DOT[order.status]}`} />
+                        {order.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {orders && (
+            <p className="mt-4 text-xs text-neutral-400">
+              Showing {orders.length} of {summary?.totalOrders ?? orders.length} orders
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
-function Metric({ label, value, detail }: { label: string; value: string; detail: string }) { return <div className="rounded-2xl border border-black/[.06] bg-white p-5"><p className="text-[10px] font-semibold uppercase tracking-[.16em] text-black/40">{label}</p><p className="mt-3 font-display text-3xl tracking-[-.05em]">{value}</p><p className="mt-2 text-xs text-black/40">{detail}</p></div> }
-export const ordersForLoading = orders
