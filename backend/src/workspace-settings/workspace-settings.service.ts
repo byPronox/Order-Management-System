@@ -15,8 +15,21 @@ export class WorkspaceSettingsService {
   ) {}
 
   async findByWorkspace(workspaceId: number) {
-    const settings = await this.settingsRepository.findOne({ where: { workspaceId } });
-    if (!settings) throw new NotFoundException(`Settings for workspace #${workspaceId} not found`);
+    let settings = await this.settingsRepository.findOne({ where: { workspaceId } });
+
+    if (!settings) {
+      const workspace = await this.workspacesRepository.findOne({ where: { id: workspaceId } });
+      if (!workspace) {
+        throw new NotFoundException(`Workspace #${workspaceId} not found`);
+      }
+
+      settings = this.settingsRepository.create({
+        workspaceId,
+        workspaceName: workspace.name,
+      });
+      await this.settingsRepository.save(settings);
+    }
+
     return settings;
   }
 
