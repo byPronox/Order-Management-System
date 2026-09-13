@@ -4,9 +4,50 @@ export type CustomerStatus = 'active' | 'paused'
 export type ProductStatus = 'active' | 'draft' | 'out_of_stock'
 export type UserRole = 'admin' | 'user'
 
-export interface Customer { id: string; name: string; email: string; phone: string; address: string; type: CustomerType; status: CustomerStatus; createdAt: string; updatedAt: string }
-export interface Product { id: string; name: string; description: string; sku: string; price: number; stock: number; imageUrl: string; status: ProductStatus; createdAt: string; updatedAt: string }
-export interface OrderItem { id: string; productId: string; quantity: number; unitPrice: number; subtotal: number }
+export interface Customer {
+  id: string
+  name: string
+  email: string
+  companyName?: string
+  customerType: CustomerType
+  phone?: string
+  address?: string
+  status: CustomerStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateCustomerPayload {
+  name: string
+  email: string
+  companyName?: string
+  customerType?: string
+  phone?: string
+  address?: string
+  status?: string
+}
+
+export interface Product {
+  id: string
+  name: string
+  description: string
+  sku: string
+  price: number
+  stock: number
+  imageUrl: string
+  status: ProductStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export interface OrderItem {
+  id: string
+  productId: string
+  quantity: number
+  unitPrice: number
+  subtotal: number
+}
+
 export interface Order {
   id: string
   customerId: string
@@ -17,7 +58,15 @@ export interface Order {
   createdAt: string
   updatedAt: string
 }
-export interface User { id: string; email: string; name: string; role: UserRole; createdAt: string }
+
+export interface User {
+  id: string
+  email: string
+  name: string
+  role: UserRole
+  createdAt: string
+}
+
 export interface Workspace {
   id: number
   name: string

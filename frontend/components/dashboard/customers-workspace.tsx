@@ -1,11 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Download, Plus, Search } from "lucide-react"
+import { Download, Plus, Search, Pencil, Trash2 } from "lucide-react"
 import { customersApi } from "@/lib/api/customers"
 import { getInitials } from "@/lib/utils"
-import type { Customer, CustomerType, CustomerStatus } from "@/lib/types"
+import type { Customer, CustomerType } from "@/lib/types"
 import { useWorkspaceId } from "@/lib/hooks/use-workspace-id"
+import { CustomerFormModal } from "@/components/dashboard/customer-form-modal"
+import { DeleteConfirmDialog } from "@/components/dashboard/delete-confirm-dialog"
 
 const TYPE_TABS: { label: string; value: CustomerType | "all" }[] = [
   { label: "All customers", value: "all" },
@@ -41,6 +43,18 @@ export function CustomersWorkspace() {
   const [search, setSearch] = useState("")
   const [error, setError] = useState<string | null>(null)
 
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null)
+  const [deleting, setDeleting] = useState(false)
+
+  function refetch() {
+    customersApi
+      .list({ workspaceId, search: search || undefined })
+      .then(setCustomers)
+      .catch(() => setError("Could not load customers."))
+  }
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       customersApi
@@ -51,6 +65,30 @@ export function CustomersWorkspace() {
 
     return () => clearTimeout(timeout)
   }, [workspaceId, search])
+
+  function openCreateForm() {
+    setEditingCustomer(null)
+    setFormOpen(true)
+  }
+
+  function openEditForm(customer: Customer) {
+    setEditingCustomer(customer)
+    setFormOpen(true)
+  }
+
+  async function handleDelete() {
+    if (!deletingCustomer) return
+    setDeleting(true)
+    try {
+      await customersApi.remove(deletingCustomer.id, workspaceId)
+      setDeletingCustomer(null)
+      refetch()
+    } catch {
+      setError("Could not delete this customer.")
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const filteredCustomers = customers?.filter((c) => activeTab === "all" || c.customerType === activeTab) ?? null
 
@@ -75,7 +113,11 @@ export function CustomersWorkspace() {
             <button type="button" className="flex items-center gap-2 rounded-full bg-neutral-100 px-4 py-2.5 text-xs font-semibold">
               <Download size={14} /> Export CSV
             </button>
-            <button type="button" className="flex items-center gap-2 rounded-full bg-black px-4 py-2.5 text-xs font-semibold text-white">
+            <button
+              type="button"
+              onClick={openCreateForm}
+              className="flex items-center gap-2 rounded-full bg-black px-4 py-2.5 text-xs font-semibold text-white"
+            >
               <Plus size={14} /> Add customer
             </button>
           </div>
@@ -141,7 +183,7 @@ export function CustomersWorkspace() {
           </div>
 
           <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-[820px] text-left text-sm">
               <thead>
                 <tr className="border-b border-black/6 text-xs uppercase tracking-[.08em] text-neutral-400">
                   <th className="pb-3 font-medium">Customer & company</th>
@@ -149,27 +191,28 @@ export function CustomersWorkspace() {
                   <th className="pb-3 font-medium">Email</th>
                   <th className="pb-3 font-medium">Phone</th>
                   <th className="pb-3 font-medium">Joined</th>
-                  <th className="pb-3 text-right font-medium">Status</th>
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredCustomers === null && !error && (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-sm text-neutral-400">
+                    <td colSpan={7} className="py-10 text-center text-sm text-neutral-400">
                       Loading customers...
                     </td>
                   </tr>
                 )}
                 {error && (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-sm text-red-500">
+                    <td colSpan={7} className="py-10 text-center text-sm text-red-500">
                       {error}
                     </td>
                   </tr>
                 )}
                 {filteredCustomers && filteredCustomers.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center text-sm text-neutral-400">
+                    <td colSpan={7} className="py-10 text-center text-sm text-neutral-400">
                       No customers match your filters.
                     </td>
                   </tr>
@@ -197,11 +240,31 @@ export function CustomersWorkspace() {
                     <td className="py-4 text-xs text-neutral-600">{customer.email}</td>
                     <td className="py-4 text-xs text-neutral-500">{customer.phone || "—"}</td>
                     <td className="py-4 text-xs text-neutral-500">{formatDate(customer.createdAt)}</td>
-                    <td className="py-4 text-right">
+                    <td className="py-4">
                       <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize ${STATUS_BADGE[customer.status]}`}>
                         <span className={`size-1.5 rounded-full ${STATUS_DOT[customer.status]}`} />
                         {customer.status}
                       </span>
+                    </td>
+                    <td className="py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => openEditForm(customer)}
+                          className="grid size-8 place-items-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-900"
+                          aria-label={`Edit ${customer.name}`}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeletingCustomer(customer)}
+                          className="grid size-8 place-items-center rounded-lg text-neutral-400 hover:bg-red-50 hover:text-red-600"
+                          aria-label={`Delete ${customer.name}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -216,6 +279,25 @@ export function CustomersWorkspace() {
           )}
         </div>
       </div>
+
+      {formOpen && (
+        <CustomerFormModal
+          workspaceId={workspaceId}
+          customer={editingCustomer}
+          onClose={() => setFormOpen(false)}
+          onSaved={refetch}
+        />
+      )}
+
+      {deletingCustomer && (
+        <DeleteConfirmDialog
+          title="Delete this customer?"
+          description={`"${deletingCustomer.name}" will be removed from the active list. Existing orders linked to this customer are preserved for record-keeping.`}
+          onCancel={() => setDeletingCustomer(null)}
+          onConfirm={handleDelete}
+          loading={deleting}
+        />
+      )}
     </div>
   )
 }

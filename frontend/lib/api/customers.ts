@@ -1,4 +1,4 @@
-import type { Customer } from '@/lib/types'
+import type { Customer, CreateCustomerPayload } from '@/lib/types'
 import { apiFetch, endpoints } from './client'
 
 export const customersApi = {
@@ -12,5 +12,25 @@ export const customersApi = {
   get: (id: string, workspaceId?: number) => {
     const query = workspaceId ? `?workspaceId=${workspaceId}` : ''
     return apiFetch<Customer>(`${endpoints.customers}/${id}${query}`)
+  },
+  create: (data: CreateCustomerPayload, workspaceId?: number) => {
+    const query = workspaceId ? `?workspaceId=${workspaceId}` : ''
+    return apiFetch<Customer>(`${endpoints.customers}${query}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  },
+  update: (id: string, data: Partial<CreateCustomerPayload>, workspaceId?: number) => {
+    const query = workspaceId ? `?workspaceId=${workspaceId}` : ''
+    return apiFetch<Customer>(`${endpoints.customers}/${id}${query}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  },
+  remove: (id: string, workspaceId?: number) => {
+    const query = workspaceId ? `?workspaceId=${workspaceId}` : ''
+    return apiFetch<{ success: boolean }>(`${endpoints.customers}/${id}${query}`, {
+      method: 'DELETE',
+    })
   },
 }
