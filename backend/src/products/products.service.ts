@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 
 @Injectable()
 export class ProductsService {
@@ -28,5 +30,41 @@ export class ProductsService {
     });
     if (!product) throw new NotFoundException(`Product #${id} not found`);
     return product;
+  }
+
+  async create(dto: CreateProductDto, workspaceId: number) {
+    if (dto.sku) {
+      const existing = await this.productsRepository.findOne({
+        where: { sku: dto.sku, workspaceId },
+      });
+      if (existing) {
+        throw new ConflictException('A product with this SKU already exists in this workspace');
+      }
+    }
+
+    const product = this.productsRepository.create({ ...dto, workspaceId });
+    return this.productsRepository.save(product);
+  }
+
+  async update(id: number, dto: UpdateProductDto, workspaceId?: number) {
+    const product = await this.findOne(id, workspaceId);
+
+    if (dto.sku && dto.sku !== product.sku) {
+      const existing = await this.productsRepository.findOne({
+        where: { sku: dto.sku, workspaceId: product.workspaceId },
+      });
+      if (existing && existing.id !== id) {
+        throw new ConflictException('A product with this SKU already exists in this workspace');
+      }
+    }
+
+    Object.assign(product, dto);
+    return this.productsRepository.save(product);
+  }
+
+  async remove(id: number, workspaceId?: number) {
+    const product = await this.findOne(id, workspaceId);
+    await this.productsRepository.softRemove(product);
+    return { success: true };
   }
 }
