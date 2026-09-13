@@ -39,7 +39,9 @@ export class DashboardService {
     const orderWhere = workspaceId ? { workspaceId } : {};
 
     // ---- Customers ----
-    const totalCustomers = await this.customersRepository.count();
+    const totalCustomers = await this.customersRepository.count({
+        where: workspaceId ? { workspaceId } : {},
+        });
     const customersCurrentPeriod = await this.customersRepository
       .createQueryBuilder('c')
       .where('c.created_at >= :start', { start: currentStart })
@@ -53,11 +55,14 @@ export class DashboardService {
       .getCount();
 
     // ---- Products ----
-    const totalProducts = await this.productsRepository.count();
-    const lowStockCount = await this.productsRepository
-      .createQueryBuilder('p')
-      .where('p.stock IS NOT NULL AND p.stock < :threshold', { threshold: 10 })
-      .getCount();
+    const totalProducts = await this.productsRepository.count({
+    where: workspaceId ? { workspaceId } : {},
+    }); 
+    const lowStockQb = this.productsRepository
+    .createQueryBuilder('p')
+    .where('p.stock IS NOT NULL AND p.stock < :threshold', { threshold: 10 });
+    if (workspaceId) lowStockQb.andWhere('p.workspace_id = :workspaceId', { workspaceId });
+    const lowStockCount = await lowStockQb.getCount();
 
     // ---- Orders ----
     const totalOrders = await this.ordersRepository.count({ where: orderWhere });

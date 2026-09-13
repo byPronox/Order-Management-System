@@ -10,12 +10,22 @@ export class CustomersService {
     private readonly customersRepository: Repository<Customer>,
   ) {}
 
-  findAll() {
-    return this.customersRepository.find();
+  findAll(workspaceId?: number, search?: string) {
+    const qb = this.customersRepository.createQueryBuilder('customer');
+    if (workspaceId) qb.andWhere('customer.workspace_id = :workspaceId', { workspaceId });
+    if (search) {
+      qb.andWhere('(customer.name LIKE :search OR customer.email LIKE :search)', {
+        search: `%${search}%`,
+      });
+    }
+    qb.orderBy('customer.createdAt', 'DESC');
+    return qb.getMany();
   }
 
-  async findOne(id: number) {
-    const customer = await this.customersRepository.findOne({ where: { id } });
+  async findOne(id: number, workspaceId?: number) {
+    const customer = await this.customersRepository.findOne({
+      where: workspaceId ? { id, workspaceId } : { id },
+    });
     if (!customer) throw new NotFoundException(`Customer #${id} not found`);
     return customer;
   }
