@@ -1,5 +1,5 @@
 -- =========================================================
--- Order Management System - Complete Schema
+-- Order Management System - Complete Schema (Multi-Workspace)
 -- MySQL 8.0+
 -- =========================================================
 
@@ -9,8 +9,22 @@ CREATE DATABASE IF NOT EXISTS order_management
 USE order_management;
 
 -- =========================================================
+-- WORKSPACES
+-- Minimal multi-workspace support: shared user accounts,
+-- workspace-scoped customers, products, orders and settings.
+-- =========================================================
+CREATE TABLE workspaces (
+  id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name        VARCHAR(150) NOT NULL,
+  slug        VARCHAR(100) NOT NULL,
+  created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_workspaces_slug (slug)
+) ENGINE=InnoDB;
+
+-- =========================================================
 -- USERS
--- Internal team members who operate the system (NOT customers)
+-- Internal team members who operate the system (NOT customers).
+-- Users are global: any user can operate across any workspace.
 -- =========================================================
 CREATE TABLE users (
   id                BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -45,12 +59,11 @@ CREATE TABLE refresh_tokens (
 
 -- =========================================================
 -- WORKSPACE SETTINGS
--- Single-row global configuration (NOT multi-tenant).
--- Backs the Settings page without implementing full
--- multi-workspace isolation, which is out of scope for this test.
+-- One row per workspace (1:1). Each workspace has its own
+-- currency, timezone, and operational defaults.
 -- =========================================================
 CREATE TABLE workspace_settings (
-  id                          TINYINT UNSIGNED PRIMARY KEY DEFAULT 1,
+  workspace_id                BIGINT UNSIGNED PRIMARY KEY,
   workspace_name              VARCHAR(150) NOT NULL DEFAULT 'Orderly HQ',
   default_timezone            VARCHAR(60)  NOT NULL DEFAULT 'America/New_York',
   default_currency            VARCHAR(3)   NOT NULL DEFAULT 'USD',
@@ -61,16 +74,18 @@ CREATE TABLE workspace_settings (
   notify_customers_on_status  BOOLEAN NOT NULL DEFAULT TRUE,
   updated_at                  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                                ON UPDATE CURRENT_TIMESTAMP,
-  CONSTRAINT chk_single_row CHECK (id = 1)
+  CONSTRAINT fk_settings_workspace FOREIGN KEY (workspace_id)
+      REFERENCES workspaces(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
-
-INSERT INTO workspace_settings (id) VALUES (1);
 
 -- =========================================================
 -- CUSTOMERS
+-- Scoped per workspace. Email is unique WITHIN a workspace,
+-- not globally (the same email can exist in two workspaces).
 -- =========================================================
 CREATE TABLE customers (
   id             BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  workspace_id   BIGINT UNSIGNED NOT NULL,
   name           VARCHAR(150) NOT NULL,
   company_name   VARCHAR(150) NULL,
   customer_type  ENUM('individual','smb','enterprise')
@@ -83,7 +98,10 @@ CREATE TABLE customers (
   updated_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                  ON UPDATE CURRENT_TIMESTAMP,
   deleted_at     TIMESTAMP NULL DEFAULT NULL,     -- soft delete: preserve order history
-  UNIQUE KEY uq_customers_email (email),
+  CONSTRAINT fk_customers_workspace FOREIGN KEY (workspace_id)
+      REFERENCES workspaces(id) ON DELETE RESTRICT,
+  UNIQUE KEY uq_customers_workspace_email (workspace_id, email),
+  INDEX idx_customers_workspace (workspace_id),
   INDEX idx_customers_name (name),
   INDEX idx_customers_type (customer_type),
   INDEX idx_customers_status (status)
@@ -91,9 +109,12 @@ CREATE TABLE customers (
 
 -- =========================================================
 -- PRODUCTS
+-- Scoped per workspace. SKU is unique WITHIN a workspace,
+-- not globally.
 -- =========================================================
 CREATE TABLE products (
   id               BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  workspace_id     BIGINT UNSIGNED NOT NULL,
   name             VARCHAR(150) NOT NULL,
   description      VARCHAR(500) NULL,
   category         VARCHAR(100) NULL,
@@ -107,7 +128,10 @@ CREATE TABLE products (
   updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                    ON UPDATE CURRENT_TIMESTAMP,
   deleted_at       TIMESTAMP NULL DEFAULT NULL,     -- soft delete: preserve order history
-  UNIQUE KEY uq_products_sku (sku),
+  CONSTRAINT fk_products_workspace FOREIGN KEY (workspace_id)
+      REFERENCES workspaces(id) ON DELETE RESTRICT,
+  UNIQUE KEY uq_products_workspace_sku (workspace_id, sku),
+  INDEX idx_products_workspace (workspace_id),
   INDEX idx_products_name (name),
   INDEX idx_products_category (category),
   INDEX idx_products_status (status),
@@ -116,10 +140,12 @@ CREATE TABLE products (
 
 -- =========================================================
 -- ORDERS
--- Only 3 statuses per test requirements: pending / completed / cancelled
+-- Scoped per workspace. Only 3 statuses per test requirements:
+-- pending / completed / cancelled.
 -- =========================================================
 CREATE TABLE orders (
   id                  BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  workspace_id        BIGINT UNSIGNED NOT NULL,
   customer_id         BIGINT UNSIGNED NOT NULL,
   created_by_user_id  BIGINT UNSIGNED NULL,          -- internal user who registered the order
   status              ENUM('pending', 'completed', 'cancelled')
@@ -129,10 +155,13 @@ CREATE TABLE orders (
   updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
                       ON UPDATE CURRENT_TIMESTAMP,
   cancelled_at        TIMESTAMP NULL DEFAULT NULL,
+  CONSTRAINT fk_orders_workspace FOREIGN KEY (workspace_id)
+      REFERENCES workspaces(id) ON DELETE RESTRICT,
   CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id)
       REFERENCES customers(id) ON DELETE RESTRICT,
   CONSTRAINT fk_orders_created_by FOREIGN KEY (created_by_user_id)
       REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_orders_workspace (workspace_id),
   INDEX idx_orders_customer (customer_id),
   INDEX idx_orders_status (status),
   INDEX idx_orders_created (created_at),
@@ -141,7 +170,7 @@ CREATE TABLE orders (
 
 -- =========================================================
 -- ORDER_ITEMS
--- Resolves the M:N relationship between orders and products
+-- Resolves the M:N relationship between orders and products.
 -- =========================================================
 CREATE TABLE order_items (
   id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -161,28 +190,13 @@ CREATE TABLE order_items (
   CONSTRAINT chk_items_quantity CHECK (quantity > 0)
 ) ENGINE=InnoDB;
 
-
-
 -- =========================================================
--- WORKSPACES
--- Minimal multi-workspace support: shared customers/products,
--- workspace-scoped orders only.
+-- SEED: Default workspaces + their settings
 -- =========================================================
-CREATE TABLE workspaces (
-  id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  name        VARCHAR(150) NOT NULL,
-  slug        VARCHAR(100) NOT NULL,
-  created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uq_workspaces_slug (slug)
-) ENGINE=InnoDB;
+INSERT INTO workspaces (id, name, slug) VALUES
+  (1, 'Orderly HQ', 'orderly-hq'),
+  (2, 'Orderly EU', 'orderly-eu');
 
-INSERT INTO workspaces (name, slug) VALUES
-  ('Orderly HQ', 'orderly-hq'),
-  ('Orderly EU', 'orderly-eu');
-
--- Add workspace_id to orders
-ALTER TABLE orders
-  ADD COLUMN workspace_id BIGINT UNSIGNED NOT NULL DEFAULT 1 AFTER customer_id,
-  ADD CONSTRAINT fk_orders_workspace FOREIGN KEY (workspace_id)
-      REFERENCES workspaces(id) ON DELETE RESTRICT,
-  ADD INDEX idx_orders_workspace (workspace_id);
+INSERT INTO workspace_settings (workspace_id, workspace_name, default_currency) VALUES
+  (1, 'Orderly HQ', 'USD'),
+  (2, 'Orderly EU', 'EUR');
