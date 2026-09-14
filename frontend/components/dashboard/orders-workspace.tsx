@@ -7,6 +7,7 @@ import { formatCurrency, getInitials } from "@/lib/utils"
 import type { Order, OrderStatus, OrderSummary } from "@/lib/types"
 import { useWorkspaceId } from "@/lib/hooks/use-workspace-id"
 import { CreateOrderModal } from "@/components/dashboard/create-order-modal"
+import { OrderDetailModal } from "@/components/dashboard/order-detail-modal"
 
 const STATUS_TABS: { label: string; value: OrderStatus | "all" }[] = [
   { label: "All orders", value: "all" },
@@ -39,6 +40,7 @@ export function OrdersWorkspace() {
   const [search, setSearch] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
 
   function refetch() {
     ordersApi.getSummary(workspaceId).then(setSummary).catch(() => {})
@@ -198,7 +200,11 @@ export function OrdersWorkspace() {
                   </tr>
                 )}
                 {orders?.map((order) => (
-                  <tr key={order.id} className="border-b border-black/4 last:border-0">
+                  <tr
+                    key={order.id}
+                    onClick={() => setSelectedOrderId(order.id)}
+                    className="cursor-pointer border-b border-black/4 transition hover:bg-neutral-50 last:border-0"
+                  >
                     <td className="py-4 font-mono text-xs font-semibold">ORD-{order.id}</td>
                     <td className="py-4">
                       <div className="flex items-center gap-2.5">
@@ -239,6 +245,15 @@ export function OrdersWorkspace() {
           workspaceId={workspaceId}
           onClose={() => setModalOpen(false)}
           onCreated={refetch}
+        />
+      )}
+
+      {selectedOrderId && (
+        <OrderDetailModal
+          orderId={selectedOrderId}
+          workspaceId={workspaceId}
+          onClose={() => setSelectedOrderId(null)}
+          onUpdated={refetch}
         />
       )}
     </div>

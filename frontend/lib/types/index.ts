@@ -43,6 +43,7 @@ export interface Product {
 export interface OrderItem {
   id: string
   productId: string
+  product?: { id: string; name: string; sku?: string }
   quantity: number
   unitPrice: number
   subtotal: number
