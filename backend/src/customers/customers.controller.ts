@@ -2,7 +2,6 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestj
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Controller('customers')
 export class CustomersController {
@@ -12,13 +11,14 @@ export class CustomersController {
   findAll(
     @Query('workspaceId') workspaceId?: string,
     @Query('search') search?: string,
-    @Query() pagination?: PaginationQueryDto,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     return this.customersService.findAll({
       workspaceId: workspaceId ? +workspaceId : undefined,
       search,
-      page: pagination?.page,
-      limit: pagination?.limit,
+      page: page ? +page : undefined,
+      limit: limit ? +limit : undefined,
     });
   }
 
