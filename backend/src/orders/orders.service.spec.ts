@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { OrdersService } from './orders.service';
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
@@ -10,15 +10,18 @@ import { Customer } from '../customers/entities/customer.entity';
 
 describe('OrdersService — status transitions', () => {
   let service: OrdersService;
-  let ordersRepository: any;
+  let ordersRepository: jest.Mocked<Repository<Order>>;
 
   beforeEach(async () => {
-    ordersRepository = { findOne: jest.fn(), save: jest.fn() };
+    const mockOrdersRepository = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrdersService,
-        { provide: getRepositoryToken(Order), useValue: ordersRepository },
+        { provide: getRepositoryToken(Order), useValue: mockOrdersRepository },
         { provide: getRepositoryToken(OrderItem), useValue: {} },
         { provide: getRepositoryToken(Product), useValue: {} },
         { provide: getRepositoryToken(Customer), useValue: {} },
@@ -27,11 +30,12 @@ describe('OrdersService — status transitions', () => {
     }).compile();
 
     service = module.get<OrdersService>(OrdersService);
+    ordersRepository = module.get(getRepositoryToken(Order));
   });
 
   it('allows pending -> completed', async () => {
     const order = { id: 1, status: OrderStatus.PENDING } as Order;
-    jest.spyOn(service, 'findOne').mockResolvedValue(order as any);
+    jest.spyOn(service, 'findOne').mockResolvedValue(order);
     ordersRepository.save.mockResolvedValue(order);
 
     await service.updateStatus(1, OrderStatus.COMPLETED);
@@ -40,7 +44,7 @@ describe('OrdersService — status transitions', () => {
 
   it('allows pending -> cancelled and sets cancelledAt', async () => {
     const order = { id: 1, status: OrderStatus.PENDING } as Order;
-    jest.spyOn(service, 'findOne').mockResolvedValue(order as any);
+    jest.spyOn(service, 'findOne').mockResolvedValue(order);
     ordersRepository.save.mockResolvedValue(order);
 
     await service.updateStatus(1, OrderStatus.CANCELLED);
@@ -50,14 +54,14 @@ describe('OrdersService — status transitions', () => {
 
   it('rejects completed -> pending (terminal state)', async () => {
     const order = { id: 1, status: OrderStatus.COMPLETED } as Order;
-    jest.spyOn(service, 'findOne').mockResolvedValue(order as any);
+    jest.spyOn(service, 'findOne').mockResolvedValue(order);
 
     await expect(service.updateStatus(1, OrderStatus.PENDING)).rejects.toThrow(BadRequestException);
   });
 
   it('rejects cancelled -> completed (terminal state)', async () => {
     const order = { id: 1, status: OrderStatus.CANCELLED } as Order;
-    jest.spyOn(service, 'findOne').mockResolvedValue(order as any);
+    jest.spyOn(service, 'findOne').mockResolvedValue(order);
 
     await expect(service.updateStatus(1, OrderStatus.COMPLETED)).rejects.toThrow(BadRequestException);
   });
