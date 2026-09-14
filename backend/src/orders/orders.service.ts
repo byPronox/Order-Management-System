@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { Order, OrderStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
-import { Product } from '../products/entities/product.entity';
+import { Product, ProductStatus } from '../products/entities/product.entity';
 import { Customer } from '../customers/entities/customer.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 
@@ -95,7 +95,6 @@ export class OrdersService {
   }
 
   async create(dto: CreateOrderDto, workspaceId: number, createdByUserId?: number) {
-    // Validar que el cliente exista y pertenezca a este workspace
     const customer = await this.customersRepository.findOne({
       where: { id: dto.customerId, workspaceId },
     });
@@ -105,7 +104,7 @@ export class OrdersService {
 
     const productIds = dto.items.map((item) => item.productId);
     const products = await this.productsRepository.find({
-      where: productIds.map((id) => ({ id, workspaceId })),
+      where: { id: In(productIds), workspaceId },
     });
 
     if (products.length !== new Set(productIds).size) {
@@ -114,33 +113,60 @@ export class OrdersService {
 
     const productMap = new Map(products.map((p) => [Number(p.id), p]));
 
-    let totalAmount = 0;
-    const orderItems: OrderItem[] = dto.items.map((itemDto) => {
+    for (const itemDto of dto.items) {
       const product = productMap.get(Number(itemDto.productId));
       if (!product) {
         throw new BadRequestException(`Product #${itemDto.productId} not found`);
       }
-      const unitPrice = Number(product.price);
-      totalAmount += unitPrice * itemDto.quantity;
+      if (product.status !== ProductStatus.ACTIVE) {
+        throw new BadRequestException(
+          `Product "${product.name}" is not available for sale (status: ${product.status})`,
+        );
+      }
+      if (product.stock !== null && product.stock !== undefined && product.stock < itemDto.quantity) {
+        throw new BadRequestException(
+          `Not enough stock for "${product.name}" — available: ${product.stock}, requested: ${itemDto.quantity}`,
+        );
+      }
+    }
 
-      const orderItem = new OrderItem();
-      orderItem.productId = Number(product.id);
-      orderItem.quantity = itemDto.quantity;
-      orderItem.unitPrice = unitPrice;
-      return orderItem;
-    });
+    return this.dataSource.transaction(async (manager) => {
+      let totalAmount = 0;
+      const orderItems: OrderItem[] = dto.items.map((itemDto) => {
+        const product = productMap.get(Number(itemDto.productId))!;
+        const unitPrice = Number(product.price);
+        totalAmount += unitPrice * itemDto.quantity;
 
-    const order = this.ordersRepository.create({
-      workspaceId,
-      customerId: dto.customerId,
-      createdByUserId,
-      status: OrderStatus.PENDING,
-      totalAmount,
-      items: orderItems,
-    });
+        const orderItem = new OrderItem();
+        orderItem.productId = Number(product.id);
+        orderItem.quantity = itemDto.quantity;
+        orderItem.unitPrice = unitPrice;
+        return orderItem;
+      });
 
-    const saved = await this.ordersRepository.save(order);
-    return this.findOne(saved.id, workspaceId);
+      const order = manager.create(Order, {
+        workspaceId,
+        customerId: dto.customerId,
+        createdByUserId,
+        status: OrderStatus.PENDING,
+        totalAmount,
+        items: orderItems,
+      });
+      const saved = await manager.save(order);
+
+      for (const itemDto of dto.items) {
+        const product = productMap.get(Number(itemDto.productId))!;
+        if (product.stock !== null && product.stock !== undefined) {
+          const newStock = product.stock - itemDto.quantity;
+          await manager.update(Product, product.id, {
+            stock: newStock,
+            status: newStock === 0 ? ProductStatus.OUT_OF_STOCK : product.status,
+          });
+        }
+      }
+
+      return saved.id;
+    }).then((orderId) => this.findOne(orderId, workspaceId));
   }
 
   async updateStatus(id: number, newStatus: OrderStatus, workspaceId?: number) {
@@ -153,12 +179,27 @@ export class OrdersService {
       );
     }
 
-    order.status = newStatus;
     if (newStatus === OrderStatus.CANCELLED) {
-      order.cancelledAt = new Date();
+      await this.dataSource.transaction(async (manager) => {
+        for (const item of order.items) {
+          const product = await manager.findOne(Product, { where: { id: item.productId } });
+          if (product && product.stock !== null && product.stock !== undefined) {
+            const restoredStock = product.stock + item.quantity;
+            await manager.update(Product, product.id, {
+              stock: restoredStock,
+              status: product.status === ProductStatus.OUT_OF_STOCK ? ProductStatus.ACTIVE : product.status,
+            });
+          }
+        }
+        order.status = newStatus;
+        order.cancelledAt = new Date();
+        await manager.save(order);
+      });
+    } else {
+      order.status = newStatus;
+      await this.ordersRepository.save(order);
     }
 
-    await this.ordersRepository.save(order);
     return this.findOne(id, workspaceId);
   }
 

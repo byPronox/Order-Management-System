@@ -22,6 +22,11 @@ export class ProductsController {
     });
   }
 
+  @Get('sellable')
+  findAllSellable(@Query('workspaceId') workspaceId?: string, @Query('search') search?: string) {
+    return this.productsService.findAllSellable(workspaceId ? +workspaceId : undefined, search);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Query('workspaceId') workspaceId?: string) {
     return this.productsService.findOne(+id, workspaceId ? +workspaceId : undefined);

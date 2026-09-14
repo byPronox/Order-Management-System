@@ -1,11 +1,10 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Product } from './entities/product.entity';
+import { Product, ProductStatus } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { paginate } from '../common/utils/paginate.util';
-
 
 @Injectable()
 export class ProductsService {
@@ -24,6 +23,20 @@ export class ProductsService {
     }
     qb.orderBy('product.createdAt', 'DESC');
     return paginate(qb, params.page, params.limit);
+  }
+
+  findAllSellable(workspaceId?: number, search?: string) {
+    const qb = this.productsRepository.createQueryBuilder('product')
+      .andWhere('product.status = :status', { status: ProductStatus.ACTIVE });
+
+    if (workspaceId) qb.andWhere('product.workspace_id = :workspaceId', { workspaceId });
+    if (search) {
+      qb.andWhere('(product.name LIKE :search OR product.sku LIKE :search)', {
+        search: `%${search}%`,
+      });
+    }
+    qb.orderBy('product.createdAt', 'DESC');
+    return qb.getMany();
   }
 
   async findOne(id: number, workspaceId?: number) {
