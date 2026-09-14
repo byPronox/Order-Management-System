@@ -3,11 +3,13 @@ import { Type } from 'class-transformer';
 import { CreateOrderItemDto } from './create-order-item.dto';
 
 export class CreateOrderDto {
+  @Type(() => Number)
   @IsInt()
   @IsPositive()
   customerId: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   workspaceId?: number;
 
