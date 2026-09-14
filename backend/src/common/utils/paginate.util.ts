@@ -1,10 +1,10 @@
-import { SelectQueryBuilder } from 'typeorm';
+import { ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 import { PaginatedResult } from '../interfaces/paginated-result.interface';
 
 const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 20;
 
-export async function paginate<T>(
+export async function paginate<T extends ObjectLiteral>(
   qb: SelectQueryBuilder<T>,
   page?: number,
   limit?: number,
