@@ -3,6 +3,7 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { OrderStatus } from './entities/order.entity';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Controller('orders')
 export class OrdersController {
@@ -13,11 +14,14 @@ export class OrdersController {
     @Query('workspaceId') workspaceId?: string,
     @Query('status') status?: OrderStatus,
     @Query('search') search?: string,
+    @Query() pagination?: PaginationQueryDto,
   ) {
     return this.ordersService.findAll({
       workspaceId: workspaceId ? +workspaceId : undefined,
       status,
       search,
+      page: pagination?.page,
+      limit: pagination?.limit,
     });
   }
 

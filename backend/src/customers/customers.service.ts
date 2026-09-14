@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { paginate } from '../common/utils/paginate.util';
 
 @Injectable()
 export class CustomersService {
@@ -12,16 +13,16 @@ export class CustomersService {
     private readonly customersRepository: Repository<Customer>,
   ) {}
 
-  findAll(workspaceId?: number, search?: string) {
+  findAll(params: { workspaceId?: number; search?: string; page?: number; limit?: number }) {
     const qb = this.customersRepository.createQueryBuilder('customer');
-    if (workspaceId) qb.andWhere('customer.workspace_id = :workspaceId', { workspaceId });
-    if (search) {
+    if (params.workspaceId) qb.andWhere('customer.workspace_id = :workspaceId', { workspaceId: params.workspaceId });
+    if (params.search) {
       qb.andWhere('(customer.name LIKE :search OR customer.email LIKE :search)', {
-        search: `%${search}%`,
+        search: `%${params.search}%`,
       });
     }
     qb.orderBy('customer.createdAt', 'DESC');
-    return qb.getMany();
+    return paginate(qb, params.page, params.limit);
   }
 
   async findOne(id: number, workspaceId?: number) {

@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { paginate } from '../common/utils/paginate.util';
+
 
 @Injectable()
 export class ProductsService {
@@ -12,16 +14,16 @@ export class ProductsService {
     private readonly productsRepository: Repository<Product>,
   ) {}
 
-  findAll(workspaceId?: number, search?: string) {
+  findAll(params: { workspaceId?: number; search?: string; page?: number; limit?: number }) {
     const qb = this.productsRepository.createQueryBuilder('product');
-    if (workspaceId) qb.andWhere('product.workspace_id = :workspaceId', { workspaceId });
-    if (search) {
+    if (params.workspaceId) qb.andWhere('product.workspace_id = :workspaceId', { workspaceId: params.workspaceId });
+    if (params.search) {
       qb.andWhere('(product.name LIKE :search OR product.sku LIKE :search)', {
-        search: `%${search}%`,
+        search: `%${params.search}%`,
       });
     }
     qb.orderBy('product.createdAt', 'DESC');
-    return qb.getMany();
+    return paginate(qb, params.page, params.limit);
   }
 
   async findOne(id: number, workspaceId?: number) {

@@ -2,14 +2,24 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestj
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
-  findAll(@Query('workspaceId') workspaceId?: string, @Query('search') search?: string) {
-    return this.productsService.findAll(workspaceId ? +workspaceId : undefined, search);
+  findAll(
+    @Query('workspaceId') workspaceId?: string,
+    @Query('search') search?: string,
+    @Query() pagination?: PaginationQueryDto,
+  ) {
+    return this.productsService.findAll({
+      workspaceId: workspaceId ? +workspaceId : undefined,
+      search,
+      page: pagination?.page,
+      limit: pagination?.limit,
+    });
   }
 
   @Get(':id')

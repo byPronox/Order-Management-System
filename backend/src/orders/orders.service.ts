@@ -29,26 +29,60 @@ export class OrdersService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async findAll(params: { workspaceId?: number; status?: OrderStatus; search?: string }) {
-    const qb = this.ordersRepository
-      .createQueryBuilder('order')
-      .leftJoinAndSelect('order.customer', 'customer')
-      .leftJoinAndSelect('order.items', 'items')
-      .orderBy('order.createdAt', 'DESC');
+  async findAll(params: {
+    workspaceId?: number;
+    status?: OrderStatus;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const filteredQb = () => {
+      const qb = this.ordersRepository
+        .createQueryBuilder('order')
+        .leftJoin('order.customer', 'customer');
 
-    if (params.workspaceId) {
-      qb.andWhere('order.workspaceId = :workspaceId', { workspaceId: params.workspaceId });
-    }
-    if (params.status) {
-      qb.andWhere('order.status = :status', { status: params.status });
-    }
-    if (params.search) {
-      qb.andWhere('(customer.name LIKE :search OR customer.email LIKE :search OR order.id LIKE :search)', {
-        search: `%${params.search}%`,
-      });
+      if (params.workspaceId) qb.andWhere('order.workspaceId = :workspaceId', { workspaceId: params.workspaceId });
+      if (params.status) qb.andWhere('order.status = :status', { status: params.status });
+      if (params.search) {
+        qb.andWhere('(customer.name LIKE :search OR customer.email LIKE :search OR order.id LIKE :search)', {
+          search: `%${params.search}%`,
+        });
+      }
+      return qb;
+    };
+
+    if (!params.page && !params.limit) {
+      return filteredQb()
+        .leftJoinAndSelect('order.customer', 'customerFull')
+        .leftJoinAndSelect('order.items', 'items')
+        .orderBy('order.createdAt', 'DESC')
+        .getMany();
     }
 
-    return qb.getMany();
+    const currentPage = params.page && params.page > 0 ? params.page : 1;
+    const pageSize = params.limit && params.limit > 0 ? Math.min(params.limit, 100) : 20;
+
+    const [ids, total] = await filteredQb()
+      .select('order.id')
+      .orderBy('order.createdAt', 'DESC')
+      .skip((currentPage - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    if (ids.length === 0) {
+      return { data: [], meta: { total, page: currentPage, limit: pageSize, totalPages: Math.ceil(total / pageSize) } };
+    }
+
+    const orders = await this.ordersRepository.find({
+      where: { id: In(ids.map((o) => o.id)) },
+      relations: ['customer', 'items', 'items.product'],
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      data: orders,
+      meta: { total, page: currentPage, limit: pageSize, totalPages: Math.ceil(total / pageSize) },
+    };
   }
 
   async findOne(id: number, workspaceId?: number) {
