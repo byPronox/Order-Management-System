@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { UserRole } from '../users/entities/user.entity';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -23,7 +24,7 @@ describe('AuthController', () => {
   it('delegates login to AuthService with the provided credentials', async () => {
     authService.login.mockResolvedValue({
       accessToken: 'fake-token',
-      user: { id: 1, name: 'Admin', email: 'admin@orderly.com', role: 'admin' },
+      user: { id: 1, name: 'Admin', email: 'admin@orderly.com', role: UserRole.ADMIN },
     });
 
     const result = await controller.login({ email: 'admin@orderly.com', password: 'secret' });
