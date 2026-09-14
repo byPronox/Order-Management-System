@@ -11,7 +11,9 @@ export function useWorkspaceId() {
       const raw = getCookie("workspace_id")
       setWorkspaceId(raw ? Number(raw) : undefined)
     }
+
     sync()
+    
     window.addEventListener("workspace-changed", sync)
     return () => window.removeEventListener("workspace-changed", sync)
   }, [])

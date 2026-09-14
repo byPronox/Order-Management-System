@@ -1,11 +1,16 @@
 import type { Workspace } from '@/lib/types'
-import { apiFetch, endpoints } from './client'
+import { apiFetch } from './client'
+import { endpoints } from './endpoints'
 
 export const workspacesApi = {
-  list: () => apiFetch<Workspace[]>(endpoints.workspaces),
-  create: (name: string) =>
-    apiFetch<Workspace>(endpoints.workspaces, {
+  list: () => {
+    return apiFetch<Workspace[]>(endpoints.workspaces)
+  },
+  
+  create: (name: string) => {
+    return apiFetch<Workspace>(endpoints.workspaces, {
       method: "POST",
       body: JSON.stringify({ name }),
-    }),
+    })
+  },
 }

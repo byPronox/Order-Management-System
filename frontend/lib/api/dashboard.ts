@@ -1,9 +1,9 @@
 import type { DashboardSummary } from '@/lib/types'
-import { apiFetch, endpoints } from './client'
+import { apiFetch, buildQuery } from './client'
+import { endpoints } from './endpoints'
 
 export const dashboardApi = {
   getSummary: (workspaceId?: number) => {
-    const query = workspaceId ? `?workspaceId=${workspaceId}` : ''
-    return apiFetch<DashboardSummary>(`${endpoints.dashboard}${query}`)
+    return apiFetch<DashboardSummary>(`${endpoints.dashboard}${buildQuery({ workspaceId })}`)
   },
 }

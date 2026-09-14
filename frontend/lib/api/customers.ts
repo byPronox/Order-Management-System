@@ -1,36 +1,33 @@
 import type { Customer, CreateCustomerPayload } from '@/lib/types'
-import { apiFetch, endpoints } from './client'
+import { apiFetch, buildQuery } from './client'
+import { endpoints } from './endpoints'
 
 export const customersApi = {
-  list: (params: { workspaceId?: number; search?: string }) => {
-    const query = new URLSearchParams()
-    if (params.workspaceId) query.set('workspaceId', String(params.workspaceId))
-    if (params.search) query.set('search', params.search)
-    const qs = query.toString()
-    return apiFetch<Customer[]>(`${endpoints.customers}${qs ? `?${qs}` : ''}`)
+  list: (params?: { workspaceId?: number; search?: string }) => {
+    return apiFetch<Customer[]>(`${endpoints.customers}${buildQuery(params)}`);
   },
+  
   get: (id: string, workspaceId?: number) => {
-    const query = workspaceId ? `?workspaceId=${workspaceId}` : ''
-    return apiFetch<Customer>(`${endpoints.customers}/${id}${query}`)
+    return apiFetch<Customer>(`${endpoints.customers}/${id}${buildQuery({ workspaceId })}`);
   },
+  
   create: (data: CreateCustomerPayload, workspaceId?: number) => {
-    const query = workspaceId ? `?workspaceId=${workspaceId}` : ''
-    return apiFetch<Customer>(`${endpoints.customers}${query}`, {
+    return apiFetch<Customer>(`${endpoints.customers}${buildQuery({ workspaceId })}`, {
       method: 'POST',
       body: JSON.stringify(data),
-    })
+    });
   },
+  
   update: (id: string, data: Partial<CreateCustomerPayload>, workspaceId?: number) => {
-    const query = workspaceId ? `?workspaceId=${workspaceId}` : ''
-    return apiFetch<Customer>(`${endpoints.customers}/${id}${query}`, {
+    return apiFetch<Customer>(`${endpoints.customers}/${id}${buildQuery({ workspaceId })}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
-    })
+    });
   },
+  
   remove: (id: string, workspaceId?: number) => {
-    const query = workspaceId ? `?workspaceId=${workspaceId}` : ''
-    return apiFetch<{ success: boolean }>(`${endpoints.customers}/${id}${query}`, {
+    return apiFetch<{ success: boolean }>(`${endpoints.customers}/${id}${buildQuery({ workspaceId })}`, {
       method: 'DELETE',
-    })
+    });
   },
 }

@@ -1,24 +1,16 @@
-import { apiFetch, endpoints } from './client'
-
-export interface WorkspaceSettingsData {
-  workspaceId: number
-  workspaceName: string
-  defaultTimezone: string
-  defaultCurrency: string
-  defaultOrderStatus: string
-  requireOrderReview: boolean
-  allowPartialFulfillment: boolean
-  notifyCustomersOnStatus: boolean
-}
-
-export type UpdateWorkspaceSettingsPayload = Partial<Omit<WorkspaceSettingsData, "workspaceId">>
+import type { WorkspaceSettingsData, UpdateWorkspaceSettingsPayload } from '@/lib/types'
+import { apiFetch, buildQuery } from './client'
+import { endpoints } from './endpoints'
 
 export const workspaceSettingsApi = {
-  get: (workspaceId: number) =>
-    apiFetch<WorkspaceSettingsData>(`${endpoints.workspaceSettings}?workspaceId=${workspaceId}`),
-  update: (workspaceId: number, data: UpdateWorkspaceSettingsPayload) =>
-    apiFetch<WorkspaceSettingsData>(`${endpoints.workspaceSettings}?workspaceId=${workspaceId}`, {
+  get: (workspaceId: number) => {
+    return apiFetch<WorkspaceSettingsData>(`${endpoints.workspaceSettings}${buildQuery({ workspaceId })}`)
+  },
+  
+  update: (workspaceId: number, data: UpdateWorkspaceSettingsPayload) => {
+    return apiFetch<WorkspaceSettingsData>(`${endpoints.workspaceSettings}${buildQuery({ workspaceId })}`, {
       method: "PATCH",
       body: JSON.stringify(data),
-    }),
+    })
+  },
 }

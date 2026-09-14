@@ -5,7 +5,7 @@ export type ProductStatus = 'active' | 'draft' | 'out_of_stock'
 export type UserRole = 'admin' | 'user'
 
 export interface Customer {
-  id: string
+  id: number
   name: string
   email: string
   companyName?: string
@@ -17,18 +17,8 @@ export interface Customer {
   updatedAt: string
 }
 
-export interface CreateCustomerPayload {
-  name: string
-  email: string
-  companyName?: string
-  customerType?: string
-  phone?: string
-  address?: string
-  status?: string
-}
-
 export interface Product {
-  id: string
+  id: number
   name: string
   description?: string
   category?: string
@@ -41,18 +31,18 @@ export interface Product {
 }
 
 export interface OrderItem {
-  id: string
-  productId: string
-  product?: { id: string; name: string; sku?: string }
+  id: number
+  productId: number
+  product?: Pick<Product, 'id' | 'name' | 'sku'>
   quantity: number
   unitPrice: number
   subtotal: number
 }
 
 export interface Order {
-  id: string
-  customerId: string
-  customer?: { id: string; name: string; email: string }
+  id: number
+  customerId: number
+  customer?: Pick<Customer, 'id' | 'name' | 'email'>
   status: OrderStatus
   totalAmount: number
   items: OrderItem[]
@@ -61,7 +51,7 @@ export interface Order {
 }
 
 export interface User {
-  id: string
+  id: number
   email: string
   name: string
   role: UserRole
@@ -73,6 +63,35 @@ export interface Workspace {
   name: string
   slug: string
 }
+
+export interface WorkspaceSettingsData {
+  workspaceId: number
+  workspaceName: string
+  defaultTimezone: string
+  defaultCurrency: string
+  defaultOrderStatus: string
+  requireOrderReview: boolean
+  allowPartialFulfillment: boolean
+  notifyCustomersOnStatus: boolean
+}
+
+// --- Payloads de Mutación (DRY) ---
+
+// Heredan de la entidad principal pero quitan campos autogenerados
+export type CreateCustomerPayload = Omit<Customer, 'id' | 'createdAt' | 'updatedAt' | 'customerType' | 'status'> & {
+  customerType?: string
+  status?: string
+}
+export type UpdateCustomerPayload = Partial<CreateCustomerPayload>
+
+export type CreateProductPayload = Omit<Product, 'id' | 'createdAt' | 'updatedAt' | 'status'> & {
+  status?: string
+}
+export type UpdateProductPayload = Partial<CreateProductPayload>
+
+export type UpdateWorkspaceSettingsPayload = Partial<Omit<WorkspaceSettingsData, 'workspaceId' | 'workspaceName'>>
+
+// --- Sumarios y Dashboards ---
 
 export interface DashboardSummary {
   metrics: {
@@ -104,14 +123,4 @@ export interface OrderSummary {
   pendingFulfillment: number
   revenueThisMonth: number
   revenueGrowthPercent: number
-}
-
-export interface CreateProductPayload {
-  name: string
-  description?: string
-  category?: string
-  sku?: string
-  price: number
-  stock?: number
-  status?: string
 }

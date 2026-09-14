@@ -10,8 +10,10 @@ export function formatCurrency(amount: number, currency = 'USD') {
 }
 
 export function formatRelativeDate(dateString: string) {
+  if (!dateString) return ''
   const date = new Date(dateString)
   const now = new Date()
+  
   const isToday = date.toDateString() === now.toDateString()
 
   const yesterday = new Date(now)
@@ -25,9 +27,11 @@ export function formatRelativeDate(dateString: string) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + `, ${time}`
 }
 
-export function getInitials(name: string) {
+export function getInitials(name?: string) {
+  if (!name) return '??'
   return name
-    .split(' ')
+    .trim()
+    .split(/\s+/)
     .map((part) => part.charAt(0))
     .slice(0, 2)
     .join('')
