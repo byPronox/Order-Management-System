@@ -35,7 +35,7 @@ export function CreateOrderModal({ workspaceId, onClose, onCreated }: CreateOrde
   }, [workspaceId, customerSearch])
 
   useEffect(() => {
-    productsApi.list({ workspaceId, search: productSearch || undefined }).then(setProducts).catch(() => {})
+  productsApi.listSellable({ workspaceId, search: productSearch || undefined }).then(setProducts).catch(() => {})
   }, [workspaceId, productSearch])
 
   function addProduct(product: Product) {
@@ -81,8 +81,8 @@ export function CreateOrderModal({ workspaceId, onClose, onCreated }: CreateOrde
       )
       onCreated()
       onClose()
-    } catch {
-      setError("Could not create the order. Please try again.")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create the order. Please try again.")
     } finally {
       setSubmitting(false)
     }
@@ -174,7 +174,12 @@ export function CreateOrderModal({ workspaceId, onClose, onCreated }: CreateOrde
                     >
                       <div>
                         <p className="text-sm font-semibold text-neutral-900">{product.name}</p>
-                        <p className="text-xs text-neutral-400">{formatCurrency(Number(product.price))}</p>
+                        <p className="text-xs text-neutral-400">
+                          {formatCurrency(Number(product.price))}
+                          {product.stock !== null && product.stock !== undefined && (
+                            <span className="ml-2 text-neutral-400">· {product.stock} in stock</span>
+                          )}
+                        </p>
                       </div>
                       <Plus size={16} className="text-neutral-400" />
                     </button>

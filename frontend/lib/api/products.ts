@@ -9,6 +9,13 @@ export const productsApi = {
     const qs = query.toString()
     return apiFetch<Product[]>(`${endpoints.products}${qs ? `?${qs}` : ''}`)
   },
+  listSellable: (params: { workspaceId?: number; search?: string }) => {
+    const query = new URLSearchParams()
+    if (params.workspaceId) query.set('workspaceId', String(params.workspaceId))
+    if (params.search) query.set('search', params.search)
+    const qs = query.toString()
+    return apiFetch<Product[]>(`${endpoints.products}/sellable${qs ? `?${qs}` : ''}`)
+  },
   get: (id: string, workspaceId?: number) => {
     const query = workspaceId ? `?workspaceId=${workspaceId}` : ''
     return apiFetch<Product>(`${endpoints.products}/${id}${query}`)
