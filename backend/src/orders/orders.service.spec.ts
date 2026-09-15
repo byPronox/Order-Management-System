@@ -18,6 +18,17 @@ describe('OrdersService — status transitions', () => {
       save: jest.fn(),
     };
 
+    const mockEntityManager = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+    };
+
+    const mockDataSource = {
+      transaction: jest.fn().mockImplementation(async (cb) => {
+        return await cb(mockEntityManager);
+      }),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrdersService,
@@ -25,7 +36,7 @@ describe('OrdersService — status transitions', () => {
         { provide: getRepositoryToken(OrderItem), useValue: {} },
         { provide: getRepositoryToken(Product), useValue: {} },
         { provide: getRepositoryToken(Customer), useValue: {} },
-        { provide: DataSource, useValue: {} },
+        { provide: DataSource, useValue: mockDataSource },
       ],
     }).compile();
 
@@ -34,7 +45,7 @@ describe('OrdersService — status transitions', () => {
   });
 
   it('allows pending -> completed', async () => {
-    const order = { id: 1, status: OrderStatus.PENDING } as Order;
+    const order = { id: 1, status: OrderStatus.PENDING, items: [] } as Order;
     jest.spyOn(service, 'findOne').mockResolvedValue(order);
     ordersRepository.save.mockResolvedValue(order);
 
@@ -43,7 +54,7 @@ describe('OrdersService — status transitions', () => {
   });
 
   it('allows pending -> cancelled and sets cancelledAt', async () => {
-    const order = { id: 1, status: OrderStatus.PENDING } as Order;
+    const order = { id: 1, status: OrderStatus.PENDING, items: [] } as Order;
     jest.spyOn(service, 'findOne').mockResolvedValue(order);
     ordersRepository.save.mockResolvedValue(order);
 
@@ -53,14 +64,14 @@ describe('OrdersService — status transitions', () => {
   });
 
   it('rejects completed -> pending (terminal state)', async () => {
-    const order = { id: 1, status: OrderStatus.COMPLETED } as Order;
+    const order = { id: 1, status: OrderStatus.COMPLETED, items: [] } as Order;
     jest.spyOn(service, 'findOne').mockResolvedValue(order);
 
     await expect(service.updateStatus(1, OrderStatus.PENDING)).rejects.toThrow(BadRequestException);
   });
 
   it('rejects cancelled -> completed (terminal state)', async () => {
-    const order = { id: 1, status: OrderStatus.CANCELLED } as Order;
+    const order = { id: 1, status: OrderStatus.CANCELLED, items: [] } as Order;
     jest.spyOn(service, 'findOne').mockResolvedValue(order);
 
     await expect(service.updateStatus(1, OrderStatus.COMPLETED)).rejects.toThrow(BadRequestException);
