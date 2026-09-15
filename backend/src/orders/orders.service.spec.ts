@@ -45,7 +45,7 @@ describe('OrdersService — status transitions', () => {
   });
 
   it('allows pending -> completed', async () => {
-    const order = { id: 1, status: OrderStatus.PENDING, items: [] } as Order;
+    const order = { id: 1, status: OrderStatus.PENDING, items: [] } as unknown as Order;
     jest.spyOn(service, 'findOne').mockResolvedValue(order);
     ordersRepository.save.mockResolvedValue(order);
 
@@ -54,7 +54,7 @@ describe('OrdersService — status transitions', () => {
   });
 
   it('allows pending -> cancelled and sets cancelledAt', async () => {
-    const order = { id: 1, status: OrderStatus.PENDING, items: [] } as Order;
+    const order = { id: 1, status: OrderStatus.PENDING, items: [] } as unknown as Order;
     jest.spyOn(service, 'findOne').mockResolvedValue(order);
     ordersRepository.save.mockResolvedValue(order);
 
@@ -64,14 +64,14 @@ describe('OrdersService — status transitions', () => {
   });
 
   it('rejects completed -> pending (terminal state)', async () => {
-    const order = { id: 1, status: OrderStatus.COMPLETED, items: [] } as Order;
+    const order = { id: 1, status: OrderStatus.COMPLETED, items: [] } as unknown as Order;
     jest.spyOn(service, 'findOne').mockResolvedValue(order);
 
     await expect(service.updateStatus(1, OrderStatus.PENDING)).rejects.toThrow(BadRequestException);
   });
 
   it('rejects cancelled -> completed (terminal state)', async () => {
-    const order = { id: 1, status: OrderStatus.CANCELLED, items: [] } as Order;
+    const order = { id: 1, status: OrderStatus.CANCELLED, items: [] } as unknown as Order;
     jest.spyOn(service, 'findOne').mockResolvedValue(order);
 
     await expect(service.updateStatus(1, OrderStatus.COMPLETED)).rejects.toThrow(BadRequestException);
