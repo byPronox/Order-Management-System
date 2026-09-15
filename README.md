@@ -6,9 +6,9 @@ A small Order Management System built with **NestJS**, **Next.js**, and **MySQL*
 - Frontend: https://order-management-system-coral.vercel.app
 - Backend API: https://order-management-system-production-8314.up.railway.app/api
 
-**Default login:**
+**Default login (local Docker Compose setup):**
 - Email: `admin@orderly.com`
-- Password: *(set via seed script — see Setup below)*
+- Password: `YourPassword123` *(seeded automatically — see Setup below)*
 
 ---
 
@@ -59,8 +59,10 @@ order-management-system/
 │   │   └── database/
 │   ├── test/                # e2e tests
 │   ├── scripts/
-│   │   └── schema.sql      # Full DB schema, ready to run from scratch
+│   │   ├── schema.sql       # Full DB schema, ready to run from scratch
+│   │   └── seed-admin.sql   # Seeds the default admin user (Docker only, see below)
 │   ├── Dockerfile
+│   ├── .env.example
 │   └── package.json
 │
 ├── frontend/                # Next.js app
@@ -71,6 +73,7 @@ order-management-system/
 │   │   ├── hooks/
 │   │   └── types/
 │   ├── Dockerfile
+│   ├── .env.example
 │   └── package.json
 │
 ├── docs/
@@ -81,8 +84,16 @@ order-management-system/
 │       └── ci.yml           # Code quality + automated tests
 │
 ├── docker-compose.yml
+├── .env.example              # Used by docker-compose.yml (Option A)
 └── README.md
 ```
+
+> **Note on `.env` files:** there are three separate `.env.example` files in this repo, and that's intentional — they're read by different things:
+> - **`./.env`** (project root) — read only by `docker-compose.yml`. This is the one you need for Option A below.
+> - **`backend/.env`** — read only by NestJS when running the backend directly with `npm run start:dev` (Option B).
+> - **`frontend/.env`** — read only by Next.js when running the frontend directly with `npm run dev` (Option B).
+>
+> `docker-compose` never reads `backend/.env` or `frontend/.env` — those only matter if you run the services outside Docker.
 
 ---
 
@@ -105,23 +116,35 @@ docker-compose up --build
 
 This automatically:
 - Starts MySQL and loads the full schema (`backend/scripts/schema.sql`) on first run — no manual SQL steps needed
+- **Seeds a default admin user** (`backend/scripts/seed-admin.sql`) on first run — no manual `INSERT` needed either (see below)
 - Builds and starts the backend at `http://localhost:3000/api`
 - Builds and starts the frontend at `http://localhost:3001`
 
-To reset the database completely (re-run the schema from scratch):
+To reset the database completely (re-run the schema and seed from scratch):
 
 ```bash
 docker-compose down -v
 docker-compose up --build
 ```
 
-**Creating the admin user:** the schema does not seed a user automatically (passwords must be hashed). After the containers are up:
+**Windows-only note (Docker Desktop):** the frontend container talks to the backend container using `host.docker.internal`, which needs to resolve correctly both *inside* containers and *from your browser*. Docker Desktop sometimes maps this hostname to your machine's LAN IP (e.g. `192.168.x.x`) instead of `127.0.0.1`, which can cause the frontend to time out when calling the API from the browser (`ERR_CONNECTION_TIMED_OUT`). If that happens:
+
+1. Open `C:\Windows\System32\drivers\etc\hosts` as Administrator.
+2. Make sure the line for `host.docker.internal` points to `127.0.0.1`:
+   ```
+   127.0.0.1 host.docker.internal
+   ```
+3. Save, then just refresh the app (no need to restart Docker).
+
+**About the seeded admin user:** the default admin (`admin@orderly.com` / `YourPassword123`) is created automatically the *first* time the MySQL volume is initialized, via `backend/scripts/seed-admin.sql` (mounted into `docker-entrypoint-initdb.d`, same mechanism as `schema.sql`). The password hash in that file is a pre-generated bcrypt hash — if you want to seed a different password, generate a new hash and replace it in that file:
 
 ```bash
-docker exec -it oms-backend node -e "console.log(require('bcrypt').hashSync('YourPassword123', 10))"
+docker exec -it oms-backend node -e "console.log(require('bcrypt').hashSync('YourNewPassword', 10))"
 ```
 
-Then insert it directly into MySQL:
+Then paste the resulting hash into `backend/scripts/seed-admin.sql` and re-run `docker-compose down -v && docker-compose up --build` (init scripts only run once, against a fresh volume).
+
+To create **additional** users afterwards (not just the seeded admin), insert them directly:
 
 ```bash
 docker exec -it oms-mysql mysql -uroot -p order_management
@@ -129,7 +152,7 @@ docker exec -it oms-mysql mysql -uroot -p order_management
 
 ```sql
 INSERT INTO users (name, email, password_hash, role)
-VALUES ('Admin', 'admin@orderly.com', '<paste-hash-here>', 'admin');
+VALUES ('Some Name', 'someone@example.com', '<paste-hash-here>', 'admin');
 ```
 
 ### Option B — Run services manually (without Docker)
@@ -138,9 +161,10 @@ VALUES ('Admin', 'admin@orderly.com', '<paste-hash-here>', 'admin');
 
 ```bash
 mysql -h <host> -P <port> -u <user> -p < backend/scripts/schema.sql
+mysql -h <host> -P <port> -u <user> -p < backend/scripts/seed-admin.sql   # optional: seeds the default admin
 ```
 
-Create the admin user the same way as described above (generate a bcrypt hash, then `INSERT` it).
+Or create the admin user by hand the same way as described in Option A (generate a bcrypt hash, then `INSERT` it).
 
 #### 2. Backend
 
@@ -303,6 +327,7 @@ Not implemented in this submission, but noted as production next-steps:
 - **No per-user workspace permissions** — any logged-in user can access and modify any workspace.
 - **Image upload is scaffolded but not fully wired** to a live Cloudinary account in this submission.
 - **Single-stage Docker builds** for both backend and frontend (simpler, but produce larger images than multi-stage builds would, since devDependencies remain in the final image).
+- **The seeded admin password is a fixed pre-generated hash** (`backend/scripts/seed-admin.sql`), applied only on a fresh database volume via `docker-entrypoint-initdb.d`. It's not regenerated dynamically from an environment variable — see the "About the seeded admin user" note in Setup if you need a different password.
 
 ---
 
@@ -314,3 +339,4 @@ This project was built with the assistance of Claude (Anthropic) throughout the 
 - MySQL's `mysql2` driver returns `BIGINT` columns as strings at runtime despite TypeORM typing them as `number`. This surfaced twice: once as a silent `Map` key mismatch when matching order items to products, and again as a `class-validator` 400 error when e2e tests sent an `id` fresh from a previous response back into a `POST` body — both fixed by explicit `Number()` conversion / `@Type(() => Number)` on the relevant DTOs.
 - A missing `workspace_settings` row for a given workspace initially caused a hard 404; the service was updated to auto-provision a default settings row when a workspace exists but its settings don't.
 - A cascading e2e test failure (`Unknown column 'NaN'`) traced back to a single missing type coercion in `CreateOrderDto`, illustrating how one validation gap can produce misleading downstream errors — resolved at the root cause rather than patched per symptom.
+- **Local Docker Compose networking**: the browser and the frontend's server-side Route Handler needed different hostnames to reach the backend container (`localhost` works for the browser on the host machine, but not from inside another container). Resolved using `host.docker.internal`, which both the browser and containers can resolve to the host machine — with a documented Windows caveat where Docker Desktop can map it to a LAN IP instead of `127.0.0.1`, requiring a manual fix in the system `hosts` file.
