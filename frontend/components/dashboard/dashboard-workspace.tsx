@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react"
 import { Calendar, Download, Plus, Filter, ArrowUpRight } from "lucide-react"
 import { dashboardApi } from "@/lib/api/dashboard"
-import { formatCurrency, formatRelativeDate, getInitials, getCookie } from "@/lib/utils"
+import { formatCurrency, formatRelativeDate, getInitials } from "@/lib/utils"
 import type { DashboardSummary } from "@/lib/types"
-import { PageHeader } from "@/components/page-header"
+import { useWorkspaceId } from "@/lib/hooks/use-workspace-id"
 
 const STATUS_STYLES: Record<string, string> = {
   completed: "bg-emerald-500",
@@ -24,16 +24,28 @@ function StatusLabel({ status }: { status: string }) {
 }
 
 export function DashboardWorkspace() {
+  const workspaceId = useWorkspaceId()
   const [data, setData] = useState<DashboardSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const workspaceId = getCookie("workspace_id")
+    let ignore = false;
+    
+    setError(null);
+
     dashboardApi
-      .getSummary(workspaceId ? Number(workspaceId) : undefined)
-      .then(setData)
-      .catch(() => setError("Could not load dashboard data."))
-  }, [])
+      .getSummary(workspaceId)
+      .then((res) => {
+        if (!ignore) setData(res);
+      })
+      .catch(() => {
+        if (!ignore) setError("Could not load dashboard data.");
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [workspaceId])
 
   if (error) {
     return (
@@ -44,7 +56,7 @@ export function DashboardWorkspace() {
   }
 
   if (!data) {
-    return null // el archivo loading.tsx de Next.js cubre este estado
+    return null
   }
 
   const { metrics, ordersByStatus, conversionRate, recentOrders } = data
