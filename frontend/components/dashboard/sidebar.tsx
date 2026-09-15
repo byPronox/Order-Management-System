@@ -1,11 +1,13 @@
+// frontend/components/dashboard/sidebar.tsx
 "use client"
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Box, ChevronDown, LayoutDashboard, LogOut, Package, Settings, ShoppingCart, Users } from "lucide-react"
+import { ChevronDown, LayoutDashboard, LogOut, Package, Settings, ShoppingCart, Users } from "lucide-react"
 import { BrandMark } from "@/components/brand-mark"
 import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher"
+import { authApi } from "@/lib/api/auth" // <-- Importamos nuestra API
 
 const navigation = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -43,7 +45,7 @@ export function DashboardSidebar() {
   async function handleLogout() {
     setMenuOpen(false)
     try {
-      await fetch("/api/auth/logout", { method: "POST" })
+      await authApi.logout()
     } finally {
       router.push("/login")
       router.refresh()
@@ -61,9 +63,11 @@ export function DashboardSidebar() {
       <nav className="mt-6 flex gap-1 overflow-x-auto lg:mt-8 lg:flex-col" aria-label="Workspace navigation">
         {navigation.map(({ label, href, icon: Icon }) => {
           const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href))
-          return <Link key={href} href={href} className={`module-row min-w-max lg:w-full ${active ? "module-active" : ""}`} aria-current={active ? "page" : undefined}>
-            <Icon size={17} strokeWidth={1.8} aria-hidden="true" /><span>{label}</span>
-          </Link>
+          return (
+            <Link key={href} href={href} className={`module-row min-w-max lg:w-full ${active ? "module-active" : ""}`} aria-current={active ? "page" : undefined}>
+              <Icon size={17} strokeWidth={1.8} aria-hidden="true" /><span>{label}</span>
+            </Link>
+          )
         })}
       </nav>
       <div className="relative mt-auto hidden rounded-2xl bg-white p-3 shadow-sm lg:block" ref={menuRef}>
@@ -102,5 +106,3 @@ export function DashboardSidebar() {
     </aside>
   )
 }
-
-export { Box }

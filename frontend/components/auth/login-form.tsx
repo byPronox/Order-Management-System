@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { authApi } from '@/lib/api/auth'
 
 export function LoginForm() {
   const router = useRouter()
@@ -16,16 +17,7 @@ export function LoginForm() {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.message ?? 'Invalid credentials')
-      }
+      await authApi.login({ email, password })
 
       router.push('/dashboard')
       router.refresh()

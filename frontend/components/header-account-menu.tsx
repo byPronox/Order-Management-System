@@ -1,8 +1,10 @@
+// frontend/components/header-account-menu.tsx
 "use client"
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronDown, LayoutDashboard, LogOut } from "lucide-react"
+import { authApi } from "@/lib/api/auth" // <-- Importamos nuestra API
 
 interface HeaderAccountMenuProps {
   initials: string
@@ -14,7 +16,7 @@ export function HeaderAccountMenu({ initials }: HeaderAccountMenuProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!open) return // clave: solo escuchamos cuando el menú está abierto
+    if (!open) return
 
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -22,8 +24,6 @@ export function HeaderAccountMenu({ initials }: HeaderAccountMenuProps) {
       }
     }
 
-    // el pequeño delay evita que el MISMO click que abrió el menú
-    // sea interpretado como un click "afuera"
     const timer = setTimeout(() => {
       document.addEventListener("click", handleClickOutside)
     }, 0)
@@ -37,7 +37,7 @@ export function HeaderAccountMenu({ initials }: HeaderAccountMenuProps) {
   async function handleLogout() {
     setOpen(false)
     try {
-      await fetch("/api/auth/logout", { method: "POST" })
+      await authApi.logout()
     } finally {
       router.push("/login")
       router.refresh()
