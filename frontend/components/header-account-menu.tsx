@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronDown, LayoutDashboard, LogOut } from "lucide-react"
-import { authApi } from "@/lib/api/auth" // <-- Importamos nuestra API
+import { authApi } from "@/lib/api/auth"
 
 interface HeaderAccountMenuProps {
   initials: string
