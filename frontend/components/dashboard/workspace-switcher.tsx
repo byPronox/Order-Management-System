@@ -5,14 +5,9 @@ import { useRouter } from "next/navigation"
 import { Check, ChevronDown } from "lucide-react"
 import { workspacesApi } from "@/lib/api/workspaces"
 import type { Workspace } from "@/lib/types"
+import { getCookie } from "@/lib/utils"
 
 const DEFAULT_WORKSPACE = { id: 1, name: "Orderly HQ", slug: "orderly-hq" }
-
-function getCookie(name: string) {
-  if (typeof document === "undefined") return null
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
-  return match ? decodeURIComponent(match[1]) : null
-}
 
 export function WorkspaceSwitcher() {
   const router = useRouter()
